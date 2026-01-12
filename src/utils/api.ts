@@ -1,5 +1,5 @@
 // src/utils/api.ts
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://nvh-customer-management.onrender.com/api';
 
 // Generic API request helper
 async function apiRequest<T>(
