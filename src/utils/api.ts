@@ -9,18 +9,23 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  // Get token from localStorage
   const token = localStorage.getItem('token');
+  
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  if (token) {
+  
+  // Add authorization header if token exists
+  if (token && token !== 'null' && token !== 'undefined') {
     headers['Authorization'] = `Bearer ${token}`;
   }
-
+  
   const options: RequestInit = {
     method,
     headers,
   };
+  
   if (data) {
     options.body = JSON.stringify(data);
   }
