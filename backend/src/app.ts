@@ -19,7 +19,9 @@ const app = express();
 app.use(helmet());
 app.use(cors({
   origin: ['http://localhost:3000', 'https://nvh-customer-management.vercel.app'],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
 
 // Session middleware (for family authentication)
