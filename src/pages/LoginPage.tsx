@@ -1,4 +1,3 @@
-// frontend/src/pages/LoginPage.tsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,12 +32,15 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      {/* HIDDEN CONTAINER - This prevents sidebar from showing on login page */}
+      <div className="fixed inset-0 bg-white md:hidden z-50"></div>
+      
+      <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-md relative z-50">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
             <Lock className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">NVH Agri System</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">NVH Agri System</h1>
           <p className="text-gray-600 mt-2">Family Business Portal</p>
         </div>
 
@@ -62,7 +64,7 @@ const LoginPage: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-base"
                 placeholder="Enter username"
                 required
                 disabled={isLoading}
@@ -82,7 +84,7 @@ const LoginPage: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-base"
                 placeholder="Enter password"
                 required
                 disabled={isLoading}
@@ -93,13 +95,11 @@ const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-[#023020] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-90 hover:bg-[#034830] transition disabled:opacity-50 disabled:cursor-not-allowed"
->
+            className="w-full bg-[#023020] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-90 hover:bg-[#034830] transition disabled:opacity-50 disabled:cursor-not-allowed text-base"
+          >
             {isLoading ? 'Logging in...' : 'Login to Family Portal'}
           </button>
         </form>
-
- 
       </div>
     </div>
   );

@@ -1,15 +1,29 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import LoginPage from './pages/LoginPage';
 import App from './App';
+import './index.css';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
 root.render(
   <React.StrictMode>
-    <App />
+    <Router>
+      <AuthProvider>
+        <Routes>
+          {/* Login page should be SEPARATE - no sidebar */}
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* All other pages use App layout with sidebar */}
+          <Route path="/*" element={<App />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   </React.StrictMode>
 );
 

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import CustomersPage from './pages/CustomersPage';
-import { Home, Users, DollarSign, FileText, Settings } from 'lucide-react';
+import { Home, Users, DollarSign, FileText, Settings, Menu, X } from 'lucide-react';
 import './App.css';
 import AccountingPage from './pages/AccountingPage';
 import AccountingDashboard from './pages/AccountingDashboard';
@@ -57,7 +57,7 @@ const TopBar = () => {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-8 py-4">
+    <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-semibold text-gray-800">{getPageTitle()}</h2>
@@ -65,7 +65,7 @@ const TopBar = () => {
         </div>
         <div className="flex items-center gap-4">
           {/* Removed "New Transaction" button */}
-          <div className="w-10 h-10 bg-gray-100 rounded-full"></div>
+          <div className="w-10 h-10 bg-gray-100 rounded-full hidden md:block"></div>
         </div>
       </div>
     </header>
@@ -76,11 +76,25 @@ const TopBar = () => {
 function App() {
   const location = useLocation();
   const auth = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - ADDED flex flex-col */}
-      <div className="w-64 bg-white border-r border-gray-200 min-h-screen p-6 flex flex-col">
+      {/* Mobile menu button */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-50 p-3 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+      >
+        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+      </button>
+
+      {/* Sidebar - MAKE RESPONSIVE */}
+      <div className={`
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0 fixed md:relative
+        w-64 bg-white border-r border-gray-200 min-h-screen p-6 flex flex-col
+        transition-transform duration-300 z-40 md:z-auto
+      `}>
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-green-800 flex items-center gap-2">
             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
@@ -94,6 +108,7 @@ function App() {
         <nav className="space-y-2">
           <Link 
             to="/" 
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               location.pathname === '/'
                 ? 'bg-green-50 text-green-700 font-medium'
@@ -106,6 +121,7 @@ function App() {
           
           <Link 
             to="/customers" 
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               location.pathname === '/customers' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
@@ -118,6 +134,7 @@ function App() {
           
           <Link 
             to="/accounting" 
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               location.pathname === '/accounting' && !location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
@@ -130,6 +147,7 @@ function App() {
           
           <Link 
             to="/reports" 
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               location.pathname === '/reports'
                 ? 'bg-green-50 text-green-700 font-medium'
@@ -143,6 +161,7 @@ function App() {
           <div className="pt-6 mt-6 border-t border-gray-200">
             <Link 
               to="/settings" 
+              onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 location.pathname === '/settings'
                   ? 'bg-green-50 text-green-700 font-medium'
@@ -163,7 +182,6 @@ function App() {
             </div>
             <div className="flex-1">
               <p className="font-medium text-gray-800">Admin</p>
-          
             </div>
             <button
               onClick={() => {
@@ -177,13 +195,21 @@ function App() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Overlay for mobile sidebar */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main Content - ADD margin for mobile button */}
+      <div className="flex-1 flex flex-col md:ml-0">
         {/* Top Bar - Now dynamic */}
         <TopBar />
 
         {/* Page Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-4 md:p-8">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             
@@ -222,7 +248,7 @@ function App() {
             
             <Route path="/settings" element={
               <ProtectedRoute>
-                <div className="p-8">
+                <div className="p-4 md:p-8">
                   <h2 className="text-2xl font-bold text-gray-800 mb-6">System Settings</h2>
                   <ChangePassword />
                 </div>
