@@ -125,6 +125,15 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
       }
 
       setValidationErrors(errors);
+      console.log('Form validation result:', {
+         isValid,
+         errors,
+         contactNumber,
+         contactNumberLength: contactNumber.length,
+         isPhoneValid: isValidPhoneNumber(contactNumber),
+         extractedData,
+         step
+      });
       setIsFormValid(isValid);
     };
 
