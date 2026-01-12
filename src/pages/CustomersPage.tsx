@@ -93,114 +93,38 @@ const CustomersPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
-  // Handle new customer creation
+  // Handle new customer creation - FIXED SAVE FUNCTION
   const handleCustomerCreated = async (customerData: any) => {
     try {
+      let savedCustomer: any;
+      
       if (editingCustomer) {
         // Update existing customer in MongoDB
-        const updatedCustomer = {
-          ...editingCustomer,
-          aadhaarNumber: customerData.aadhaarNumber,
-          fullName: customerData.fullName,
-          gender: customerData.gender,
-          dateOfBirth: customerData.dateOfBirth,
-          address: customerData.address,
-          contactNumber: customerData.contactNumber,
-          email: customerData.email
-        };
+        savedCustomer = await customerApi.update(editingCustomer.id, customerData);
         
-        // Update in MongoDB
-        const response = await customerApi.update(editingCustomer.id, updatedCustomer);
-        
-        if (response.data) {
-          // Update state
-          const updatedCustomers = customers.map(c => 
-            c.id === editingCustomer.id ? { ...c, ...updatedCustomer } : c
-          );
-          setCustomers(updatedCustomers);
-          setSelectedCustomer(updatedCustomer);
-        } else {
-          throw new Error('Failed to update customer in database');
-        }
-        
+        // Update local state
+        setCustomers(prev => prev.map(c => 
+          c.id === editingCustomer.id ? { ...c, ...customerData } : c
+        ));
+        setSelectedCustomer({ ...editingCustomer, ...customerData });
         setEditingCustomer(null);
       } else {
         // Create new customer in MongoDB
-        const newCustomerData = {
-          aadhaarNumber: customerData.aadhaarNumber,
-          fullName: customerData.fullName,
-          gender: customerData.gender,
-          dateOfBirth: customerData.dateOfBirth,
-          address: customerData.address,
-          contactNumber: customerData.contactNumber,
-          email: customerData.email,
-          isActive: true
-        };
-        
-        const response = await customerApi.create(newCustomerData);
-        
-        if (response.data) {
-          const newCustomer: Customer = {
-            id: response.data._id || response.data.id,
-            aadhaarNumber: response.data.aadhaarNumber,
-            fullName: response.data.fullName,
-            gender: response.data.gender,
-            dateOfBirth: response.data.dateOfBirth,
-            address: response.data.address,
-            contactNumber: response.data.contactNumber,
-            email: response.data.email,
-            createdAt: new Date(response.data.createdAt).toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-            isActive: true,
-            projects: []
-          };
-          
-          // Update state
-          setCustomers([...customers, newCustomer]);
-          setSelectedCustomer(newCustomer);
-        } else {
-          throw new Error('Failed to create customer in database');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to save customer:', error);
-      // Fallback to localStorage
-      if (editingCustomer) {
-        const updatedCustomer: Customer = {
-          ...editingCustomer,
-          aadhaarNumber: customerData.aadhaarNumber,
-          fullName: customerData.fullName,
-          gender: customerData.gender,
-          dateOfBirth: customerData.dateOfBirth,
-          address: customerData.address,
-          contactNumber: customerData.contactNumber,
-          email: customerData.email
-        };
-        
-        // Update in localStorage
-        const updatedCustomers = storage.updateCustomer(updatedCustomer);
-        setCustomers(updatedCustomers);
-        setSelectedCustomer(updatedCustomer);
-        setEditingCustomer(null);
-      } else {
-        const newCustomer: Customer = {
-          id: Date.now().toString(),
-          aadhaarNumber: customerData.aadhaarNumber,
-          fullName: customerData.fullName,
-          gender: customerData.gender,
-          dateOfBirth: customerData.dateOfBirth,
-          address: customerData.address,
-          contactNumber: customerData.contactNumber,
-          email: customerData.email,
-          createdAt: new Date().toISOString().split('T')[0],
+        const customerToSave = {
+          ...customerData,
           isActive: true,
           projects: []
         };
         
-        // Add to localStorage
-        const updatedCustomers = storage.addCustomer(newCustomer);
-        setCustomers(updatedCustomers);
-        setSelectedCustomer(newCustomer);
+        savedCustomer = await customerApi.create(customerToSave);
+        
+        // Update local state
+        setCustomers(prev => [...prev, savedCustomer.data || savedCustomer]);
+        setSelectedCustomer(savedCustomer.data || savedCustomer);
       }
+    } catch (error) {
+      console.error('Failed to save customer:', error);
+      alert('Failed to save customer. Check console for details.');
     }
     
     setShowCustomerForm(false);
