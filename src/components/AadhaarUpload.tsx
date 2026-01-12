@@ -12,7 +12,12 @@ interface AadhaarUploadProps {
 // Validation functions
 const isValidPhoneNumber = (phone: string): boolean => {
   const cleaned = phone.replace(/\D/g, ''); // Remove non-digits
-  console.log('Phone validation:', { phone, cleaned, length: cleaned.length });
+  console.log('Phone validation check:', { 
+    input: phone, 
+    cleaned: cleaned, 
+    length: cleaned.length,
+    is10Digits: cleaned.length === 10 
+  });
   return cleaned.length === 10;
 };
 
