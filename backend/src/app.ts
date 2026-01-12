@@ -17,7 +17,7 @@ const app = express();
 
 // CORS MUST BE FIRST!
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://nvh-customer-management.vercel.app'],
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
