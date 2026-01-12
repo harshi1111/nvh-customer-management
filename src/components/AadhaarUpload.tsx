@@ -80,33 +80,39 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
   }>({});
   const [isFormValid, setIsFormValid] = useState(false);
 
-  // Validate form on every change
+  // Validate form on every change - UPDATED
   useEffect(() => {
+    let isMounted = true;
+    
     const validateForm = async () => {
       const errors: { contactNumber?: string; email?: string; aadhaarDuplicate?: string } = {};
       let isValid = true;
 
-      // Phone validation
+      // Phone validation - SYNC check first
       if (!contactNumber.trim()) {
         errors.contactNumber = 'Contact number is required';
         isValid = false;
-      } else if (!isValidPhoneNumber(contactNumber)) {
+      } else if (contactNumber.length !== 10) {
         errors.contactNumber = 'Please enter a valid 10-digit phone number';
         isValid = false;
       }
 
-      // Email validation
+      // Email validation - SYNC
       if (email.trim() && !isValidEmail(email)) {
         errors.email = 'Please enter a valid email address';
         isValid = false;
       }
 
-      // Aadhaar duplicate check - UPDATED FOR ASYNC
-      if (extractedData?.aadhaarNumber) {
-        const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber);
-        if (isDuplicate) {
-          errors.aadhaarDuplicate = 'This Aadhaar number already exists in the system';
-          isValid = false;
+      // Only check Aadhaar duplicate if we have all other fields valid
+      if (isValid && extractedData?.aadhaarNumber) {
+        try {
+          const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber);
+          if (isDuplicate) {
+            errors.aadhaarDuplicate = 'This Aadhaar number already exists in the system';
+            isValid = false;
+          }
+        } catch (error) {
+          console.error('Duplicate check failed:', error);
         }
       }
 
@@ -124,20 +130,19 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
         }
       }
 
-      setValidationErrors(errors);
-      console.log('Form validation result:', {
-         isValid,
-         errors,
-         contactNumber,
-         contactNumberLength: contactNumber.length,
-         isPhoneValid: isValidPhoneNumber(contactNumber),
-         extractedData,
-         step
-      });
-      setIsFormValid(isValid);
+      // Only update state if component is still mounted
+      if (isMounted) {
+        setValidationErrors(errors);
+        setIsFormValid(isValid);
+      }
     };
 
     validateForm();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, [contactNumber, email, extractedData, step]);
 
   // Handle file upload
