@@ -257,7 +257,7 @@ const CustomersPage: React.FC = () => {
           
           {/* Customer Stats - Moved to top right */}
           {customers.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
               <div className="bg-white p-4 rounded-lg shadow-sm">
                 <div className="flex justify-between items-center">
                   <div>
@@ -303,7 +303,7 @@ const CustomersPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-4">
               {/* Search and Actions */}
               <div className="mb-6">
-                <div className="flex gap-3 mb-4">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
@@ -386,14 +386,14 @@ const CustomersPage: React.FC = () => {
 
                   {/* Manual Entry Button */}
                   <button 
-                    className="w-full py-3 border-2 border-green-600 text-green-600 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-green-50 transition-colors"
+                    className="w-full py-3 border-2 border-green-600 text-green-600 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-green-50 transition-colors text-sm sm:text-base"
                     onClick={() => {
                       setEditingCustomer(null);
                       setShowCustomerForm(true);
                     }}
                   >
                     <Plus className="w-5 h-5" />
-                    Add Manually
+                    <span className="whitespace-nowrap">Add Manually</span>
                   </button>
                 </div>
               </div>
@@ -440,7 +440,7 @@ const CustomersPage: React.FC = () => {
                       <h2 className="text-2xl font-bold text-gray-800">{selectedCustomer.fullName}</h2>
                       <p className="text-gray-600">Customer ID: {selectedCustomer.id}</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                       <button 
                         onClick={() => toggleCustomerStatus(selectedCustomer.id)}
                         className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${
@@ -485,7 +485,7 @@ const CustomersPage: React.FC = () => {
                   </div>
 
                   {/* Details Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="space-y-4">
                       <div>
                         <label className="text-sm font-medium text-gray-500">Contact Number</label>

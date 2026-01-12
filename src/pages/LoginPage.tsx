@@ -33,7 +33,7 @@ const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
       {/* HIDDEN CONTAINER - This prevents sidebar from showing on login page */}
-      <div className="fixed inset-0 bg-white md:hidden z-50"></div>
+      
       
       <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-md relative z-50">
         <div className="text-center mb-8">

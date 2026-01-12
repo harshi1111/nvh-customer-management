@@ -57,7 +57,7 @@ const TopBar = () => {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4">
+    <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 mt-16 md:mt-0">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-semibold text-gray-800">{getPageTitle()}</h2>
@@ -84,6 +84,7 @@ function App() {
       <button
         className="md:hidden fixed top-4 left-4 z-50 p-3 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors"
         onClick={() => setSidebarOpen(!sidebarOpen)}
+        style={{ zIndex: 9999 }}
       >
         {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
@@ -93,7 +94,7 @@ function App() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 fixed md:relative
         w-64 bg-white border-r border-gray-200 min-h-screen p-6 flex flex-col
-        transition-transform duration-300 z-40 md:z-auto
+        transition-transform duration-300 z-40 
       `}>
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-green-800 flex items-center gap-2">
@@ -204,7 +205,7 @@ function App() {
       )}
 
       {/* Main Content - ADD margin for mobile button */}
-      <div className="flex-1 flex flex-col md:ml-0">
+      <div className="flex-1 flex flex-col">
         {/* Top Bar - Now dynamic */}
         <TopBar />
 
