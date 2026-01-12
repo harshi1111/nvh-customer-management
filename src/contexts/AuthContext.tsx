@@ -1,6 +1,6 @@
 // In frontend/src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://nvh-customer-management.onrender.com/api';
 
 interface User {
   id: string;
