@@ -15,14 +15,16 @@ import { authenticate, authorize } from './middleware/auth';
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// CORS MUST BE FIRST!
 app.use(cors({
   origin: ['http://localhost:3000', 'https://nvh-customer-management.vercel.app'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'] 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Security middleware
+app.use(helmet());
 
 // Session middleware (for family authentication)
 app.use(session({
