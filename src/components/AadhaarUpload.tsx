@@ -25,17 +25,37 @@ const formatPhoneNumber = (phone: string): string => {
   return phone.replace(/\D/g, '').slice(0, 10);
 };
 
-// Add this function for Aadhaar duplicate check
-const checkDuplicateAadhaar = (aadhaarNumber: string): boolean => {
+// Add this function for Aadhaar duplicate check - UPDATED TO CHECK MONGODB
+const checkDuplicateAadhaar = async (aadhaarNumber: string): Promise<boolean> => {
   if (!aadhaarNumber) return false;
   
-  const customers = storage.getCustomers();
-  const cleanAadhaar = aadhaarNumber.replace(/\s/g, '');
-  
-  return customers.some(customer => {
-    const customerAadhaar = customer.aadhaarNumber.replace(/\s/g, '');
-    return customerAadhaar === cleanAadhaar;
-  });
+  try {
+    // Check MongoDB via API
+    const response = await fetch(
+      `https://nvh-customer-management.onrender.com/api/customers?search=${aadhaarNumber}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.count > 0; // If count > 0, Aadhaar exists
+    }
+    return false;
+  } catch (error) {
+    console.error('Failed to check duplicate:', error);
+    // Fallback to localStorage
+    const customers = storage.getCustomers();
+    const cleanAadhaar = aadhaarNumber.replace(/\s/g, '');
+    
+    return customers.some(customer => {
+      const customerAadhaar = customer.aadhaarNumber.replace(/\s/g, '');
+      return customerAadhaar === cleanAadhaar;
+    });
+  }
 };
 
 const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel }) => {
@@ -56,48 +76,53 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
 
   // Validate form on every change
   useEffect(() => {
-    const errors: { contactNumber?: string; email?: string; aadhaarDuplicate?: string } = {};
-    let isValid = true;
+    const validateForm = async () => {
+      const errors: { contactNumber?: string; email?: string; aadhaarDuplicate?: string } = {};
+      let isValid = true;
 
-    // Phone validation
-    if (!contactNumber.trim()) {
-      errors.contactNumber = 'Contact number is required';
-      isValid = false;
-    } else if (!isValidPhoneNumber(contactNumber)) {
-      errors.contactNumber = 'Please enter a valid 10-digit phone number';
-      isValid = false;
-    }
-
-    // Email validation
-    if (email.trim() && !isValidEmail(email)) {
-      errors.email = 'Please enter a valid email address';
-      isValid = false;
-    }
-
-    // Aadhaar duplicate check
-    if (extractedData?.aadhaarNumber) {
-      if (checkDuplicateAadhaar(extractedData.aadhaarNumber)) {
-        errors.aadhaarDuplicate = 'This Aadhaar number already exists in the system';
+      // Phone validation
+      if (!contactNumber.trim()) {
+        errors.contactNumber = 'Contact number is required';
+        isValid = false;
+      } else if (!isValidPhoneNumber(contactNumber)) {
+        errors.contactNumber = 'Please enter a valid 10-digit phone number';
         isValid = false;
       }
-    }
 
-    // Additional checks for review step
-    if (step === 'review' && extractedData) {
-      if (!extractedData.aadhaarNumber || !extractedData.fullName) {
+      // Email validation
+      if (email.trim() && !isValidEmail(email)) {
+        errors.email = 'Please enter a valid email address';
         isValid = false;
       }
-    }
 
-    // Additional checks for manual step
-    if (step === 'manual') {
-      if (!extractedData?.aadhaarNumber || !extractedData?.fullName) {
-        isValid = false;
+      // Aadhaar duplicate check - UPDATED FOR ASYNC
+      if (extractedData?.aadhaarNumber) {
+        const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber);
+        if (isDuplicate) {
+          errors.aadhaarDuplicate = 'This Aadhaar number already exists in the system';
+          isValid = false;
+        }
       }
-    }
 
-    setValidationErrors(errors);
-    setIsFormValid(isValid);
+      // Additional checks for review step
+      if (step === 'review' && extractedData) {
+        if (!extractedData.aadhaarNumber || !extractedData.fullName) {
+          isValid = false;
+        }
+      }
+
+      // Additional checks for manual step
+      if (step === 'manual') {
+        if (!extractedData?.aadhaarNumber || !extractedData?.fullName) {
+          isValid = false;
+        }
+      }
+
+      setValidationErrors(errors);
+      setIsFormValid(isValid);
+    };
+
+    validateForm();
   }, [contactNumber, email, extractedData, step]);
 
   // Handle file upload
@@ -163,7 +188,8 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
           
           if (extractedData.aadhaarNumber && extractedData.fullName) {
             // Check for duplicate Aadhaar immediately after extraction
-            if (checkDuplicateAadhaar(extractedData.aadhaarNumber)) {
+            const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber);
+            if (isDuplicate) {
               setError('This Aadhaar number already exists in the system. Please use a different Aadhaar or check existing customer.');
               setLoading(false);
               return;
@@ -199,7 +225,8 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
       console.log('Final extracted data:', extractedData);
       
       // Check for duplicate Aadhaar after OCR extraction
-      if (extractedData.aadhaarNumber && checkDuplicateAadhaar(extractedData.aadhaarNumber)) {
+      const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber || '');
+      if (extractedData.aadhaarNumber && isDuplicate) {
         setError('This Aadhaar number already exists in the system. Please use a different Aadhaar or check existing customer.');
         setLoading(false);
         return;
@@ -218,7 +245,7 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
   };
 
   // Handle manual data entry submission
-  const handleManualSubmit = () => {
+  const handleManualSubmit = async () => {
     if (!isFormValid) {
       return;
     }
@@ -229,7 +256,8 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
     }
 
     // ADD DUPLICATE CHECK HERE
-    if (checkDuplicateAadhaar(extractedData.aadhaarNumber)) {
+    const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber);
+    if (isDuplicate) {
       setError('This Aadhaar number already exists in the system');
       return;
     }
@@ -242,7 +270,7 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
   };
 
   // Handle final submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isFormValid) {
       return;
     }
@@ -253,7 +281,8 @@ const AadhaarUpload: React.FC<AadhaarUploadProps> = ({ onDataExtracted, onCancel
     }
 
     // ADD DUPLICATE CHECK HERE
-    if (checkDuplicateAadhaar(extractedData.aadhaarNumber)) {
+    const isDuplicate = await checkDuplicateAadhaar(extractedData.aadhaarNumber);
+    if (isDuplicate) {
       setError('This Aadhaar number already exists in the system');
       return;
     }

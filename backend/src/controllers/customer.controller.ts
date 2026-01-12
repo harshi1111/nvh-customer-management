@@ -96,9 +96,11 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
     // Check if Aadhaar already exists
+    console.log('Checking Aadhaar:', req.body.aadhaarNumber); // DEBUG
     const existingCustomer = await Customer.findOne({ 
       aadhaarNumber: req.body.aadhaarNumber 
     });
+    console.log('Found existing customer:', existingCustomer); // DEBUG
     
     if (existingCustomer) {
       res.status(400).json({
