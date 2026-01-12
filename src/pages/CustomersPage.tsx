@@ -6,20 +6,32 @@ import CustomerCard from '../components/CustomerCard';
 import ManualCustomerForm from '../components/ManualCustomerForm';
 import AadhaarUpload from '../components/AadhaarUpload';
 import { storage } from '../utils/storage';
+import { customerApi } from '../utils/api';
 
 const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
   
   // Load customers from localStorage on initial render
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    const savedCustomers = storage.getCustomers();
-    return savedCustomers.map((customer: any) => ({
-      ...customer,
-      // Ensure proper types
-      gender: customer.gender as 'Male' | 'Female' | 'Other',
-      isActive: customer.isActive !== undefined ? customer.isActive : true
-    }));
-  });
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        const response = await customerApi.getAll();
+        setCustomers(response.customers || response || []);
+      } catch (error) {
+        console.error('Failed to load customers:', error);
+        // Fallback to localStorage if API fails
+        const savedCustomers = storage.getCustomers();
+        setCustomers(savedCustomers.map((customer: any) => ({
+          ...customer,
+          gender: customer.gender as 'Male' | 'Female' | 'Other',
+          isActive: customer.isActive !== undefined ? customer.isActive : true
+        })));
+      }
+    };
+    loadCustomers();
+  }, []);
+
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
