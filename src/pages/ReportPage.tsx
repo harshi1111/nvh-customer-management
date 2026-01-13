@@ -240,8 +240,10 @@ const ReportPage: React.FC = () => {
         backgroundColor: '#ffffff',
         // ADD THIS: Ignore elements with specific classes
         ignoreElements: (element) => {
+          // Cast element to HTMLElement to access innerText
+          const htmlElement = element as HTMLElement;
           // Ignore loading messages
-          return element.innerText === 'Generating PDF...';
+          return htmlElement.innerText === 'Generating PDF...';
         }
       });
 
