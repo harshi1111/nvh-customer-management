@@ -94,67 +94,78 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
   }
 };
 
-// Create new customer
+// Create new customer - FIXED DUPLICATE CHECK
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Check if Aadhaar already exists - FIXED VERSION
+    console.log('=== CREATE CUSTOMER START ===');
+    console.log('Received data:', {
+      aadhaar: req.body.aadhaarNumber,
+      name: req.body.fullName,
+      contact: req.body.contactNumber
+    });
+
+    // Check if Aadhaar already exists - SIMPLE FIX
     if (req.body.aadhaarNumber) {
       const cleanAadhaar = req.body.aadhaarNumber.replace(/\s/g, '');
       
-      // Get ALL customers and check manually (temporary fix)
-      const allCustomers = await Customer.find({}).select('aadhaarNumber fullName');
+      // Try to find by contact number first (more reliable)
+      const existingByContact = await Customer.findOne({ 
+        contactNumber: req.body.contactNumber 
+      });
       
-      let existingCustomer = null;
-      
-      // Check each customer's decrypted Aadhaar
-      for (const customer of allCustomers) {
-        // Get the raw stored value (without getter)
-        const storedAadhaar = customer.get('aadhaarNumber', null, { getters: false });
-        
-        if (storedAadhaar && storedAadhaar.length > 20) {
-          // Try to decrypt and compare
-          try {
-            const decrypted = AadhaarEncryption.decrypt(storedAadhaar);
-            if (decrypted === cleanAadhaar) {
-              existingCustomer = customer;
-              break;
-            }
-          } catch (err) {
-            console.log('Failed to decrypt aadhaar for customer:', customer._id);
-          }
-        } else if (storedAadhaar === cleanAadhaar) {
-          // Direct comparison if not encrypted
-          existingCustomer = customer;
-          break;
-        }
-      }
-      
-      console.log('Found existing customer:', existingCustomer ? existingCustomer.fullName : 'None');
-      
-      if (existingCustomer) {
+      if (existingByContact) {
+        console.log('Duplicate found by contact number:', existingByContact.fullName);
         res.status(400).json({
           success: false,
-          error: `Customer with this Aadhaar number already exists: ${existingCustomer.fullName}`
+          error: `Customer with contact number ${req.body.contactNumber} already exists: ${existingByContact.fullName}`
         });
         return;
       }
+      
+      // Try to find by name and partial Aadhaar match
+      // Search for customers with similar Aadhaar patterns
+      const allCustomers = await Customer.find({}).select('aadhaarNumber fullName contactNumber');
+      
+      for (const customer of allCustomers) {
+        const storedAadhaar = customer.get('aadhaarNumber', null, { getters: false });
+        
+        // Check if stored Aadhaar contains any part of the new Aadhaar
+        if (storedAadhaar && storedAadhaar.includes(cleanAadhaar.substring(0, 4))) {
+          console.log('Possible duplicate found:', customer.fullName);
+          res.status(400).json({
+            success: false,
+            error: `Possible duplicate found: ${customer.fullName} (Aadhaar: ${customer.aadhaarNumber})`
+          });
+          return;
+        }
+      }
     }
     
-    const customerData = {
+    console.log('No duplicates found, creating customer...');
+    
+    // Create the customer
+    const customer = await Customer.create({
       ...req.body,
       projects: []
-    };
+    });
     
-    const customer = await Customer.create(customerData);
+    console.log('Customer created successfully:', customer.fullName);
     
     res.status(201).json({
       success: true,
       data: customer
     });
+    
   } catch (error: any) {
     console.error('Create customer error:', error);
     
-    if (error.name === 'ValidationError') {
+    // MongoDB duplicate key error (unique constraint violation)
+    if (error.code === 11000) {
+      res.status(400).json({
+        success: false,
+        error: 'Aadhaar number already exists in the database'
+      });
+    } else if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map((err: any) => err.message);
       res.status(400).json({
         success: false,
@@ -163,7 +174,7 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
     } else {
       res.status(500).json({
         success: false,
-        error: 'Server error'
+        error: 'Server error: ' + error.message
       });
     }
   }
