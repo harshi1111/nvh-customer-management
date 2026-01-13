@@ -33,6 +33,16 @@ async function apiRequest<T>(
   try {
     const response = await fetch(url, options);
     
+    // Added logging for API requests
+    console.log('API Request:', {
+      url,
+      method,
+      headers: options.headers,
+      body: data ? JSON.parse(options.body as string) : null,
+      status: response.status,
+      statusText: response.statusText
+    });
+    
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
