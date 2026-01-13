@@ -220,69 +220,196 @@ const ReportPage: React.FC = () => {
   };
 
   const handleExportPDF = async () => {
-    const element = document.getElementById('report-content');
-    if (!element) return;
-
-    // Store original content
-    const originalContent = element.innerHTML;
-    const originalDisplay = element.style.display;
-    
-    // Hide the "Generating PDF..." message but keep it in DOM for html2canvas
-    const loadingDiv = document.createElement('div');
-    loadingDiv.innerHTML = '<div class="text-center p-8" style="position: absolute; left: -9999px;">Generating PDF...</div>';
-    document.body.appendChild(loadingDiv);
-
     try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        // ADD THIS: Ignore elements with specific classes
-        ignoreElements: (element) => {
-          // Cast element to HTMLElement to access innerText
-          const htmlElement = element as HTMLElement;
-          // Ignore loading messages
-          return htmlElement.innerText === 'Generating PDF...';
-        }
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('landscape', 'mm', 'a4');
+      // Create a temporary div for PDF content
+      const pdfContent = document.createElement('div');
+      pdfContent.style.position = 'absolute';
+      pdfContent.style.left = '-9999px';
+      pdfContent.style.top = '0';
+      pdfContent.style.width = '1200px';
+      pdfContent.style.backgroundColor = '#ffffff';
+      pdfContent.style.padding = '20px';
       
-      const imgWidth = 280;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Build PDF content
+      let htmlContent = `
+        <div style="font-family: Arial, sans-serif;">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="font-size: 24px; color: #1f2937; margin-bottom: 5px;">Financial Report</h1>
+            <p style="font-size: 14px; color: #6b7280;">
+              Date Range: ${dateRange.start} to ${dateRange.end}
+            </p>
+            ${selectedCustomer !== 'all' ? `
+              <p style="font-size: 14px; color: #6b7280;">
+                Customer: ${customers.find(c => c.id === selectedCustomer)?.fullName}
+              </p>
+            ` : ''}
+          </div>
+      `;
       
-      // Add title to PDF
-      pdf.setFontSize(18);
-      pdf.text('Financial Report', 14, 20);
-      
-      // Add date range
-      pdf.setFontSize(10);
-      pdf.text(`Date Range: ${dateRange.start} to ${dateRange.end}`, 14, 28);
-      
-      // Add customer info if selected
-      if (selectedCustomer !== 'all') {
+      if (selectedCustomer === 'all') {
+        // For all customers: Show individual summaries
+        htmlContent += `<h2 style="font-size: 18px; color: #1f2937; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">Customer-wise Financial Summary</h2>`;
+        
+        customers.forEach((customer, index) => {
+          const customerTransactions = transactions.filter(t => t.customerId === customer.id);
+          const filteredTransactions = filterTransactionsByDate(customerTransactions);
+          
+          let customerDebit = 0;
+          let customerCredit = 0;
+          
+          filteredTransactions.forEach(transaction => {
+            customerDebit += transaction.debitAmount || 0;
+            customerCredit += transaction.creditAmount || 0;
+          });
+          
+          const customerBalance = customerCredit - customerDebit;
+          
+          htmlContent += `
+            <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
+              <h3 style="font-size: 16px; color: #1f2937; margin-bottom: 10px;">${index + 1}. ${customer.fullName}</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <p style="font-size: 12px; color: #6b7280;">Aadhaar</p>
+                  <p style="font-size: 14px; color: #1f2937;">${customer.aadhaarNumber}</p>
+                </div>
+                <div>
+                  <p style="font-size: 12px; color: #6b7280;">Phone</p>
+                  <p style="font-size: 14px; color: #1f2937;">${customer.contactNumber}</p>
+                </div>
+                <div>
+                  <p style="font-size: 12px; color: #dc2626;">Total Expenses</p>
+                  <p style="font-size: 16px; color: #dc2626; font-weight: bold;">₹${customerDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <p style="font-size: 12px; color: #16a34a;">Total Investments</p>
+                  <p style="font-size: 16px; color: #16a34a; font-weight: bold;">₹${customerCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <p style="font-size: 12px; color: #1f2937;">Balance</p>
+                  <p style="font-size: 18px; color: ${customerBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight: bold;">
+                    ₹${Math.abs(customerBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <span style="font-size: 12px; color: ${customerBalance >= 0 ? '#16a34a' : '#dc2626'};">
+                      (${customerBalance >= 0 ? 'Profit' : 'Loss'})
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <p style="font-size: 12px; color: #1f2937;">Transactions</p>
+                  <p style="font-size: 16px; color: #1f2937; font-weight: bold;">${filteredTransactions.length}</p>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        
+        // Add overall Financial Summary
+        htmlContent += `
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #1f2937;">
+            <h2 style="font-size: 18px; color: #1f2937; margin-bottom: 20px;">Overall Financial Summary</h2>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+              <div style="text-align: center; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <p style="font-size: 12px; color: #6b7280;">Total Customers</p>
+                <p style="font-size: 24px; color: #1f2937; font-weight: bold;">${summary.customerCount}</p>
+              </div>
+              <div style="text-align: center; padding: 15px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2;">
+                <p style="font-size: 12px; color: #dc2626;">Total Expenses</p>
+                <p style="font-size: 24px; color: #dc2626; font-weight: bold;">₹${summary.totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div style="text-align: center; padding: 15px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4;">
+                <p style="font-size: 12px; color: #16a34a;">Total Investments</p>
+                <p style="font-size: 24px; color: #16a34a; font-weight: bold;">₹${summary.totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div style="text-align: center; padding: 15px; border: 1px solid ${summary.isProfit ? '#bbf7d0' : '#fecaca'}; border-radius: 8px; background: ${summary.isProfit ? '#f0fdf4' : '#fef2f2'}">
+                <p style="font-size: 12px; color: #1f2937;">Net Balance</p>
+                <p style="font-size: 24px; color: ${summary.isProfit ? '#16a34a' : '#dc2626'}; font-weight: bold;">
+                  ₹${Math.abs(summary.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </p>
+                <p style="font-size: 14px; color: ${summary.isProfit ? '#16a34a' : '#dc2626'}; margin-top: 5px;">
+                  ${summary.isProfit ? 'Profit' : 'Loss'}
+                </p>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px; padding: 10px; background: #f3f4f6; border-radius: 6px;">
+              <p style="font-size: 14px; color: #1f2937;">
+                Total Transactions: <span style="font-weight: bold;">${summary.totalTransactions}</span>
+              </p>
+            </div>
+          </div>
+        `;
+      } else {
+        // For single customer: Show only their summary
         const customer = customers.find(c => c.id === selectedCustomer);
         if (customer) {
-          pdf.text(`Customer: ${customer.fullName}`, 14, 36);
+          htmlContent += `
+            <h2 style="font-size: 18px; color: #1f2937; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+              Financial Summary - ${customer.fullName}
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+              <div>
+                <p style="font-size: 12px; color: #6b7280;">Aadhaar</p>
+                <p style="font-size: 14px; color: #1f2937;">${customer.aadhaarNumber}</p>
+              </div>
+              <div>
+                <p style="font-size: 12px; color: #6b7280;">Phone</p>
+                <p style="font-size: 14px; color: #1f2937;">${customer.contactNumber}</p>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+              <div style="text-align: center; padding: 20px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2;">
+                <p style="font-size: 12px; color: #dc2626;">Total Expenses</p>
+                <p style="font-size: 24px; color: #dc2626; font-weight: bold;">₹${summary.totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div style="text-align: center; padding: 20px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4;">
+                <p style="font-size: 12px; color: #16a34a;">Total Investments</p>
+                <p style="font-size: 24px; color: #16a34a; font-weight: bold;">₹${summary.totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div style="text-align: center; padding: 20px; border: 1px solid ${summary.isProfit ? '#bbf7d0' : '#fecaca'}; border-radius: 8px; background: ${summary.isProfit ? '#f0fdf4' : '#fef2f2'}">
+                <p style="font-size: 12px; color: #1f2937;">Net Balance</p>
+                <p style="font-size: 28px; color: ${summary.isProfit ? '#16a34a' : '#dc2626'}; font-weight: bold;">
+                  ₹${Math.abs(summary.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </p>
+                <p style="font-size: 16px; color: ${summary.isProfit ? '#16a34a' : '#dc2626'}; margin-top: 10px;">
+                  ${summary.isProfit ? 'Profit' : 'Loss'}
+                </p>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 6px;">
+              <p style="font-size: 16px; color: #1f2937;">
+                Total Transactions: <span style="font-weight: bold;">${summary.totalTransactions}</span>
+              </p>
+            </div>
+          `;
         }
       }
       
-      // Add the image (starting after the text)
-      pdf.addImage(imgData, 'PNG', 10, 45, imgWidth, imgHeight);
+      htmlContent += `</div>`;
+      pdfContent.innerHTML = htmlContent;
+      document.body.appendChild(pdfContent);
       
+      // Generate PDF
+      const canvas = await html2canvas(pdfContent, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`financial_report_${dateRange.start}_to_${dateRange.end}.pdf`);
       
       // Clean up
-      document.body.removeChild(loadingDiv);
+      document.body.removeChild(pdfContent);
       
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
-      
-      // Clean up
-      document.body.removeChild(loadingDiv);
     }
   };
 
