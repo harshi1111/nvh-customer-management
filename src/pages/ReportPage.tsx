@@ -15,6 +15,8 @@ import {
   BarChart3,
   FileText
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const ReportPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -217,6 +219,44 @@ const ReportPage: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById('report-content');
+    if (!element) return;
+
+    // Show loading
+    const originalContent = element.innerHTML;
+    element.innerHTML = '<div class="text-center p-8">Generating PDF...</div>';
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('landscape', 'mm', 'a4');
+      
+      const imgWidth = 280;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+      
+      pdf.save(`financial_report_${dateRange.start}_to_${dateRange.end}.pdf`);
+      
+      // Restore original content
+      element.innerHTML = originalContent;
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+      
+      // Restore original content
+      element.innerHTML = originalContent;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -237,278 +277,290 @@ const ReportPage: React.FC = () => {
           <p className="text-gray-600 mt-2">View financial summaries for customers</p>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Customer Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Users className="w-4 h-4 inline mr-2" />
-                Customer
-              </label>
-              <select
-                value={selectedCustomer}
-                onChange={(e) => setSelectedCustomer(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm md:text-base"
-              >
-                <option value="all">All Customers</option>
-                {customers.map(customer => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.fullName}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Report content container with ID for PDF generation */}
+        <div id="report-content">
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Customer Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Users className="w-4 h-4 inline mr-2" />
+                  Customer
+                </label>
+                <select
+                  value={selectedCustomer}
+                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm md:text-base"
+                >
+                  <option value="all">All Customers</option>
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Date Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-2" />
-                From Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm md:text-base"
-              />
-            </div>
+              {/* Date Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-2" />
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm md:text-base"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-2" />
-                To Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm md:text-base"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Financial Summary */}
-        <div className="mb-6 md:mb-8">
-          <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 md:w-6 md:h-6" />
-            Financial Summary {selectedCustomer !== 'all' && `- ${summary.customerName}`}
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {/* Total Customers */}
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">Total Customers</h3>
-                  <p className="text-xs text-gray-500">Active accounts</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl md:text-3xl font-bold text-gray-800">
-                    {summary.customerCount}
-                  </span>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-2" />
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm md:text-base"
+                />
               </div>
             </div>
+          </div>
+
+          {/* Financial Summary */}
+          <div className="mb-6 md:mb-8">
+            <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 md:w-6 md:h-6" />
+              Financial Summary {selectedCustomer !== 'all' && `- ${summary.customerName}`}
+            </h2>
             
-            {/* Total Debit */}
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-red-700">Total Expenses</h3>
-                  <p className="text-xs text-red-600">Debit Amount</p>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <IndianRupee className="w-4 h-4 md:w-5 md:h-5 text-red-600" />
-                    <span className="text-2xl md:text-3xl font-bold text-red-700">
-                      {summary.totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {/* Total Customers */}
+              <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700">Total Customers</h3>
+                    <p className="text-xs text-gray-500">Active accounts</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl md:text-3xl font-bold text-gray-800">
+                      {summary.customerCount}
                     </span>
                   </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Total Credit */}
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-green-700">Total Investments</h3>
-                  <p className="text-xs text-green-600">Credit Amount</p>
+              
+              {/* Total Debit */}
+              <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-red-700">Total Expenses</h3>
+                    <p className="text-xs text-red-600">Debit Amount</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <IndianRupee className="w-4 h-4 md:w-5 md:h-5 text-red-600" />
+                      <span className="text-2xl md:text-3xl font-bold text-red-700">
+                        {summary.totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <IndianRupee className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-                    <span className="text-2xl md:text-3xl font-bold text-green-700">
-                      {summary.totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
+              </div>
+              
+              {/* Total Credit */}
+              <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-green-700">Total Investments</h3>
+                    <p className="text-xs text-green-600">Credit Amount</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <IndianRupee className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                      <span className="text-2xl md:text-3xl font-bold text-green-700">
+                        {summary.totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Balance */}
+              <div className={`bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 ${
+                summary.isProfit ? 'border-green-200' : 'border-red-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700">Net Balance</h3>
+                    <p className="text-xs text-gray-600">Overall position</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <IndianRupee className="w-4 h-4 md:w-5 md:h-5" />
+                      <span className={`text-2xl md:text-3xl font-bold ${
+                        summary.isProfit ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {Math.abs(summary.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-end mt-2">
+                      {summary.isProfit ? (
+                        <>
+                          <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
+                          <span className="text-xs md:text-sm font-medium text-green-600">Profit</span>
+                        </>
+                      ) : (
+                        <>
+                          <TrendingDown className="w-3 h-3 md:w-4 md:h-4 text-red-600" />
+                          <span className="text-xs md:text-sm font-medium text-red-600">Loss</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Balance */}
-            <div className={`bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 ${
-              summary.isProfit ? 'border-green-200' : 'border-red-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">Net Balance</h3>
-                  <p className="text-xs text-gray-600">Overall position</p>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <IndianRupee className="w-4 h-4 md:w-5 md:h-5" />
-                    <span className={`text-2xl md:text-3xl font-bold ${
-                      summary.isProfit ? 'text-green-700' : 'text-red-700'
-                    }`}>
-                      {Math.abs(summary.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 justify-end mt-2">
-                    {summary.isProfit ? (
-                      <>
-                        <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
-                        <span className="text-xs md:text-sm font-medium text-green-600">Profit</span>
-                      </>
-                    ) : (
-                      <>
-                        <TrendingDown className="w-3 h-3 md:w-4 md:h-4 text-red-600" />
-                        <span className="text-xs md:text-sm font-medium text-red-600">Loss</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+            {/* Total Transactions */}
+            <div className="mt-4 md:mt-6 text-center">
+              <div className="inline-flex items-center gap-2 bg-gray-50 px-4 md:px-6 py-2 md:py-3 rounded-lg">
+                <FileText className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+                <span className="text-gray-700 text-sm md:text-base">
+                  Total Transactions: <span className="font-bold">{summary.totalTransactions}</span>
+                </span>
               </div>
             </div>
           </div>
-          
-          {/* Total Transactions */}
-          <div className="mt-4 md:mt-6 text-center">
-            <div className="inline-flex items-center gap-2 bg-gray-50 px-4 md:px-6 py-2 md:py-3 rounded-lg">
-              <FileText className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-              <span className="text-gray-700 text-sm md:text-base">
-                Total Transactions: <span className="font-bold">{summary.totalTransactions}</span>
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Customer-wise Details */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="p-4 md:p-6 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <h2 className="text-lg md:text-xl font-bold text-gray-800">Customer Details</h2>
-              <button
-                onClick={handleExportReport}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center gap-2 w-full md:w-auto justify-center"
-              >
-                <Download className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="text-sm md:text-base">Export Report</span>
-              </button>
-            </div>
-          </div>
-          
-          {customers.length === 0 ? (
-            <div className="p-8 md:p-12 text-center">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
+          {/* Customer-wise Details */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 md:p-6 border-b border-gray-200">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800">Customer Details</h2>
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                  <button
+                    onClick={handleExportReport}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 flex items-center gap-2 justify-center"
+                  >
+                    <Download className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="text-sm md:text-base">Export CSV</span>
+                  </button>
+                  <button
+                    onClick={handleExportPDF}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center gap-2 justify-center"
+                  >
+                    <FileText className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="text-sm md:text-base">Export PDF</span>
+                  </button>
+                </div>
               </div>
-              <h3 className="text-base md:text-lg font-medium text-gray-700 mb-2">No Customers Found</h3>
-              <p className="text-gray-500 text-sm md:text-base">Add customers to see financial reports</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px]">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Customer Name</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Aadhaar</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Phone</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Total Debit</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Total Credit</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Balance</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Transactions</th>
-                    <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {customers.map(customer => {
-                    const customerTransactions = transactions.filter(t => t.customerId === customer.id);
-                    const filteredTransactions = filterTransactionsByDate(customerTransactions);
-                    
-                    let customerDebit = 0;
-                    let customerCredit = 0;
-                    
-                    filteredTransactions.forEach(transaction => {
-                      customerDebit += transaction.debitAmount || 0;
-                      customerCredit += transaction.creditAmount || 0;
-                    });
-                    
-                    const customerBalance = customerCredit - customerDebit;
-                    
-                    return (
-                      <tr key={customer.id} className="hover:bg-gray-50">
-                        <td className="p-3 md:p-4">
-                          <div className="font-medium text-gray-800 text-sm md:text-base">{customer.fullName}</div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <div className="font-mono text-xs md:text-sm">{customer.aadhaarNumber}</div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <div className="text-gray-700 text-sm md:text-base">{customer.contactNumber}</div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <div className="flex items-center gap-1">
-                            <IndianRupee className="w-3 h-3 md:w-4 md:h-4 text-red-600" />
-                            <span className="font-medium text-red-700 text-sm md:text-base">
-                              {customerDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            
+            {customers.length === 0 ? (
+              <div className="p-8 md:p-12 text-center">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
+                </div>
+                <h3 className="text-base md:text-lg font-medium text-gray-700 mb-2">No Customers Found</h3>
+                <p className="text-gray-500 text-sm md:text-base">Add customers to see financial reports</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Customer Name</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Aadhaar</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Phone</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Total Debit</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Total Credit</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Balance</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Transactions</th>
+                      <th className="p-3 md:p-4 text-left text-xs md:text-sm font-semibold text-gray-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {customers.map(customer => {
+                      const customerTransactions = transactions.filter(t => t.customerId === customer.id);
+                      const filteredTransactions = filterTransactionsByDate(customerTransactions);
+                      
+                      let customerDebit = 0;
+                      let customerCredit = 0;
+                      
+                      filteredTransactions.forEach(transaction => {
+                        customerDebit += transaction.debitAmount || 0;
+                        customerCredit += transaction.creditAmount || 0;
+                      });
+                      
+                      const customerBalance = customerCredit - customerDebit;
+                      
+                      return (
+                        <tr key={customer.id} className="hover:bg-gray-50">
+                          <td className="p-3 md:p-4">
+                            <div className="font-medium text-gray-800 text-sm md:text-base">{customer.fullName}</div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <div className="font-mono text-xs md:text-sm">{customer.aadhaarNumber}</div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <div className="text-gray-700 text-sm md:text-base">{customer.contactNumber}</div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <div className="flex items-center gap-1">
+                              <IndianRupee className="w-3 h-3 md:w-4 md:h-4 text-red-600" />
+                              <span className="font-medium text-red-700 text-sm md:text-base">
+                                {customerDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <div className="flex items-center gap-1">
+                              <IndianRupee className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
+                              <span className="font-medium text-green-700 text-sm md:text-base">
+                                {customerCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <div className={`flex items-center gap-1 ${customerBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                              <IndianRupee className="w-3 h-3 md:w-4 md:h-4" />
+                              <span className="font-bold text-sm md:text-base">
+                                {Math.abs(customerBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className={`text-xs mt-1 ${customerBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {customerBalance >= 0 ? 'Profit' : 'Loss'}
+                            </div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <div className="text-center">
+                              <span className="px-2 py-1 md:px-3 md:py-1 bg-gray-100 text-gray-700 rounded-full text-xs md:text-sm">
+                                {filteredTransactions.length}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 md:p-4">
+                            <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs font-medium ${
+                              customer.isActive 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {customer.isActive ? 'Active' : 'Inactive'}
                             </span>
-                          </div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <div className="flex items-center gap-1">
-                            <IndianRupee className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
-                            <span className="font-medium text-green-700 text-sm md:text-base">
-                              {customerCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <div className={`flex items-center gap-1 ${customerBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                            <IndianRupee className="w-3 h-3 md:w-4 md:h-4" />
-                            <span className="font-bold text-sm md:text-base">
-                              {Math.abs(customerBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className={`text-xs mt-1 ${customerBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {customerBalance >= 0 ? 'Profit' : 'Loss'}
-                          </div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <div className="text-center">
-                            <span className="px-2 py-1 md:px-3 md:py-1 bg-gray-100 text-gray-700 rounded-full text-xs md:text-sm">
-                              {filteredTransactions.length}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3 md:p-4">
-                          <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs font-medium ${
-                            customer.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {customer.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
