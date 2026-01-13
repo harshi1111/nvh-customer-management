@@ -1,4 +1,4 @@
-// components/ExpenseTable.tsx - UPDATED WITH MONGODB SUPPORT AND SERIAL NUMBER FIX
+// components/ExpenseTable.tsx - UPDATED WITH MONGODB SUPPORT
 import React, { useState, useEffect } from 'react';
 import { ExpenseType, expenseConfig, Transaction } from '../types';
 import { storage } from '../utils/storage';
@@ -49,7 +49,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // FIX: Update the loadTransactions function to ensure proper serials:
+  // Load transactions from MongoDB first, then fallback to LocalStorage
   const loadTransactions = async () => {
     setLoading(true);
     try {
@@ -60,11 +60,25 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       let mongoTransactions: Transaction[] = [];
       
       if (response && response.data && Array.isArray(response.data)) {
-        mongoTransactions = response.data.map((t: any, index: number) => ({
+        mongoTransactions = response.data.map((t: any) => ({
           id: t._id || t.id,
           customerId: t.customerId || customerId,
           projectId: t.projectId || projectId,
-          serialNumber: index + 1, // FIX: Force sequential serials
+          serialNumber: t.serialNumber || 0,
+          expenseType: t.expenseType || 'LABOUR_CHARGES',
+          quantity: t.quantity || undefined,
+          debitAmount: t.debitAmount || 0,
+          creditAmount: t.creditAmount || 0,
+          description: t.description || '',
+          transactionDate: t.transactionDate || t.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+          createdAt: t.createdAt || new Date().toISOString()
+        }));
+      } else if (response && Array.isArray(response)) {
+        mongoTransactions = response.map((t: any) => ({
+          id: t._id || t.id,
+          customerId: t.customerId || customerId,
+          projectId: t.projectId || projectId,
+          serialNumber: t.serialNumber || 0,
           expenseType: t.expenseType || 'LABOUR_CHARGES',
           quantity: t.quantity || undefined,
           debitAmount: t.debitAmount || 0,
@@ -76,35 +90,49 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       }
       
       if (mongoTransactions.length > 0) {
-        // Sync to LocalStorage as backup with correct serials
-        storage.saveTransactions(mongoTransactions);
-        setTransactions(mongoTransactions);
+        // Normalize serial numbers
+        const normalizedTransactions = mongoTransactions.map((t, index) => ({
+          ...t,
+          serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
+        }));
+        
+        // Sync to LocalStorage as backup
+        storage.saveTransactions(normalizedTransactions);
+        
+        setTransactions(normalizedTransactions);
         setLoading(false);
         return;
       }
       
-      // Fallback to LocalStorage
+      // Fallback to LocalStorage if MongoDB is empty
+      console.log('No transactions in MongoDB, falling back to LocalStorage...');
       const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
       
-      // FIX: Ensure sequential serial numbers
       const normalizedTransactions = loadedTransactions.map((t, index) => ({
         ...t,
-        serialNumber: index + 1 // Force sequential
+        serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
       }));
       
-      // Save normalized transactions back
-      storage.saveTransactions(normalizedTransactions);
+      if (loadedTransactions.some(t => t.serialNumber === 0)) {
+        storage.saveTransactions(normalizedTransactions);
+      }
       
       setTransactions(normalizedTransactions);
       
     } catch (error) {
-      console.error('Error loading transactions:', error);
-      // Fallback
+      console.error('Error loading transactions from MongoDB:', error);
+      // Fallback to LocalStorage
       const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      
       const normalizedTransactions = loadedTransactions.map((t, index) => ({
         ...t,
-        serialNumber: index + 1
+        serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
       }));
+      
+      if (loadedTransactions.some(t => t.serialNumber === 0)) {
+        storage.saveTransactions(normalizedTransactions);
+      }
+      
       setTransactions(normalizedTransactions);
     } finally {
       setLoading(false);
@@ -144,16 +172,9 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     }
   };
 
-  // FIX: Update the createNewTransaction function to get correct serial:
   const createNewTransaction = (): Transaction => {
-    const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
-    
-    let nextSerial = 1;
-    if (storedTransactions.length > 0) {
-      // FIX: Get max serial number from stored transactions
-      const maxSerial = Math.max(...storedTransactions.map(t => t.serialNumber));
-      nextSerial = maxSerial + 1;
-    }
+    // Simple: Next serial = current transactions count + 1
+    const nextSerial = transactions.length + 1;
     
     return {
       id: `temp-${Date.now()}`,
@@ -344,7 +365,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     }
   };
 
-  // FIX: Update the handleDeleteTransaction function with proper serial number recalculation:
+  // UPDATED: Delete from MongoDB AND LocalStorage
   const handleDeleteTransaction = async (id: string) => {
     if (transactions.length === 0) return;
     
@@ -362,6 +383,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
           console.log('Deleted from MongoDB:', transaction.id);
         } catch (mongoError) {
           console.error('Failed to delete from MongoDB:', mongoError);
+          // Continue with LocalStorage deletion anyway
         }
       }
       
@@ -376,27 +398,19 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       // Remove from state
       const updatedTransactions = transactions.filter(t => t.id !== id);
       
-      // FIX: Recalculate serial numbers properly - 1, 2, 3...
+      // Recalculate serial numbers
       const renumberedTransactions = updatedTransactions.map((t, index) => ({
         ...t,
-        serialNumber: index + 1 // Always sequential from 1
+        serialNumber: index + 1
       }));
       
-      // Update state with corrected serial numbers
+      // Update state
       setTransactions(renumberedTransactions);
       
       // Update LocalStorage with new serials
       renumberedTransactions.forEach(t => {
         if (!t.id.startsWith('temp-')) {
-          // Also update in LocalStorage with correct serial
-          const existing = storage.getCustomerTransactions(customerId, projectId)
-            .find(stored => stored.id === t.id);
-          if (existing) {
-            storage.updateTransaction({
-              ...existing,
-              serialNumber: t.serialNumber
-            });
-          }
+          storage.updateTransaction(t);
         }
       });
       
