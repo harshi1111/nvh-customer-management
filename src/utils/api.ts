@@ -83,6 +83,14 @@ export const customerApi = {
   // Get financial summary
   getFinancialSummary: (id: string, projectId?: string) => 
     apiRequest<any>(`/customers/${id}/financial-summary?projectId=${projectId || ''}`),
+  
+  // ADD THIS FUNCTION: Check for duplicate Aadhaar
+  checkDuplicateAadhaar: async (aadhaarNumber: string, excludeCustomerId?: string) => {
+    // Remove any spaces from Aadhaar number
+    const cleanAadhaar = aadhaarNumber.replace(/\s/g, '');
+    const endpoint = `/customers/check-aadhaar/${cleanAadhaar}${excludeCustomerId ? `?exclude=${excludeCustomerId}` : ''}`;
+    return apiRequest<{ exists: boolean; customerName?: string }>(endpoint);
+  },
 };
 
 // Project API

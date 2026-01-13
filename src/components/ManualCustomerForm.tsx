@@ -1,8 +1,9 @@
-// src/components/ManualCustomerForm.tsx - Updated with validation
+// src/components/ManualCustomerForm.tsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { Customer } from '../types';
 import { storage } from '../utils/storage';
 import { validateAadhaar, isDuplicateAadhaar } from '../utils/security';
+import { customerApi } from '../utils/api';
 import { 
   User, 
   Phone, 
@@ -42,9 +43,10 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
   const [memberSince, setMemberSince] = useState(
     initialCustomer?.createdAt ? initialCustomer.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]
   );
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
-  // Validate form
-  const validateForm = (): boolean => {
+  // Validate form - UPDATED FOR MONGODB
+  const validateForm = async (): Promise<boolean> => {
     const newErrors: Record<string, string> = {};
     
     // Full Name validation
@@ -60,12 +62,33 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
     } else if (!validateAadhaar(formData.aadhaarNumber)) {
       newErrors.aadhaarNumber = 'Invalid Aadhaar number (must be 12 digits)';
     } else {
-      // Check for duplicate Aadhaar (only for new customers or if Aadhaar changed)
-      const customers = storage.getCustomers();
-      if (!initialCustomer || initialCustomer.aadhaarNumber !== formData.aadhaarNumber) {
-        if (isDuplicateAadhaar(customers, formData.aadhaarNumber)) {
-          newErrors.aadhaarNumber = 'Aadhaar number already exists';
+      // Check for duplicate Aadhaar in MongoDB
+      try {
+        setCheckingDuplicate(true);
+        const response = await customerApi.checkDuplicateAadhaar(
+          formData.aadhaarNumber, 
+          initialCustomer?.id
+        );
+        
+        if (response.exists) {
+          newErrors.aadhaarNumber = `Aadhaar number already exists for customer: ${response.customerName || 'Another customer'}`;
         }
+      } catch (error) {
+        console.error('Failed to check duplicate Aadhaar in MongoDB:', error);
+        // Fallback to localStorage check if MongoDB fails
+        const customers = storage.getCustomers();
+        
+        // Filter out the current customer when checking for duplicates
+        const otherCustomers = initialCustomer 
+          ? customers.filter(customer => customer.id !== initialCustomer.id)
+          : customers;
+        
+        const isDuplicate = isDuplicateAadhaar(otherCustomers, formData.aadhaarNumber);
+        if (isDuplicate) {
+          newErrors.aadhaarNumber = 'Aadhaar number already exists for another customer!';
+        }
+      } finally {
+        setCheckingDuplicate(false);
       }
     }
     
@@ -101,10 +124,11 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    const isValid = await validateForm();
+    if (!isValid) {
       return;
     }
     
@@ -112,7 +136,7 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
     
     const customer: Customer = {
       id: initialCustomer?.id || Date.now().toString(),
-      aadhaarNumber: formData.aadhaarNumber,
+      aadhaarNumber: formData.aadhaarNumber.replace(/\s/g, ''), // Remove spaces for MongoDB
       fullName: formData.fullName.trim(),
       gender: formData.gender as 'Male' | 'Female' | 'Other',
       dateOfBirth: formData.dateOfBirth,
@@ -121,7 +145,8 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
       email: formData.email.trim(),
       createdAt: initialCustomer?.createdAt || new Date(memberSince).toISOString(),
       profileImage: formData.profileImage || undefined,
-      isActive: formData.isActive
+      isActive: formData.isActive,
+      projects: initialCustomer?.projects || []
     };
     
     onSave(customer);
@@ -193,20 +218,36 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Aadhaar Number *
+                {checkingDuplicate && (
+                  <span className="ml-2 text-xs text-blue-600">(checking for duplicates...)</span>
+                )}
               </label>
-              <input
-                type="text"
-                value={formData.aadhaarNumber}
-                onChange={(e) => handleAadhaarChange(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
-                  errors.aadhaarNumber ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="XXXX XXXX XXXX"
-                maxLength={14}
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={formData.aadhaarNumber}
+                  onChange={(e) => handleAadhaarChange(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${
+                    errors.aadhaarNumber ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="XXXX XXXX XXXX"
+                  maxLength={14}
+                />
+                {!errors.aadhaarNumber && formData.aadhaarNumber.replace(/\s/g, '').length === 12 && (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                )}
+              </div>
               {errors.aadhaarNumber ? (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" /> {errors.aadhaarNumber}
+                </p>
+              ) : formData.aadhaarNumber && formData.aadhaarNumber.replace(/\s/g, '').length === 12 ? (
+                <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" /> Valid 12-digit Aadhaar
+                </p>
+              ) : formData.aadhaarNumber && formData.aadhaarNumber.replace(/\s/g, '').length > 0 ? (
+                <p className="mt-1 text-sm text-yellow-600">
+                  Enter {12 - formData.aadhaarNumber.replace(/\s/g, '').length} more digits
                 </p>
               ) : (
                 <p className="mt-1 text-sm text-gray-500">
@@ -278,6 +319,14 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
               {errors.contactNumber ? (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" /> {errors.contactNumber}
+                </p>
+              ) : formData.contactNumber.length === 10 ? (
+                <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" /> Valid 10-digit number
+                </p>
+              ) : formData.contactNumber.length > 0 ? (
+                <p className="mt-1 text-sm text-yellow-600">
+                  Enter {10 - formData.contactNumber.length} more digits
                 </p>
               ) : (
                 <p className="mt-1 text-sm text-gray-500">
@@ -375,13 +424,18 @@ const ManualCustomerForm: React.FC<ManualCustomerFormProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || checkingDuplicate}
               className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex-1 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Saving...
+                  {initialCustomer ? 'Updating...' : 'Creating...'}
+                </>
+              ) : checkingDuplicate ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Checking Duplicates...
                 </>
               ) : (
                 <>
