@@ -49,36 +49,27 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Load transactions from MongoDB first, then fallback to LocalStorage
+  // Also, we need to make sure when loading, we always use the highest serial number in the database, not just index. Update loadTransactions():
   const loadTransactions = async () => {
     setLoading(true);
     try {
-      // Try to load from MongoDB first
       const response = await transactionApi.getCustomerTransactions(customerId, projectId);
       console.log('MongoDB transactions response:', response);
       
       let mongoTransactions: Transaction[] = [];
       
       if (response && response.data && Array.isArray(response.data)) {
-        mongoTransactions = response.data.map((t: any) => ({
+        // First, sort by serial number to maintain order
+        const sortedData = response.data.sort((a: any, b: any) => 
+          (a.serialNumber || 0) - (b.serialNumber || 0)
+        );
+        
+        // Then map with correct serials
+        mongoTransactions = sortedData.map((t: any) => ({
           id: t._id || t.id,
           customerId: t.customerId || customerId,
           projectId: t.projectId || projectId,
-          serialNumber: t.serialNumber || 0,
-          expenseType: t.expenseType || 'LABOUR_CHARGES',
-          quantity: t.quantity || undefined,
-          debitAmount: t.debitAmount || 0,
-          creditAmount: t.creditAmount || 0,
-          description: t.description || '',
-          transactionDate: t.transactionDate || t.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-          createdAt: t.createdAt || new Date().toISOString()
-        }));
-      } else if (response && Array.isArray(response)) {
-        mongoTransactions = response.map((t: any) => ({
-          id: t._id || t.id,
-          customerId: t.customerId || customerId,
-          projectId: t.projectId || projectId,
-          serialNumber: t.serialNumber || 0,
+          serialNumber: t.serialNumber || 1, // Use stored serial number
           expenseType: t.expenseType || 'LABOUR_CHARGES',
           quantity: t.quantity || undefined,
           debitAmount: t.debitAmount || 0,
@@ -90,49 +81,41 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       }
       
       if (mongoTransactions.length > 0) {
-        // Normalize serial numbers
-        const normalizedTransactions = mongoTransactions.map((t, index) => ({
+        // Ensure serials are sequential (fix any gaps)
+        const fixedTransactions = mongoTransactions.map((t, index) => ({
           ...t,
-          serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
+          serialNumber: index + 1
         }));
         
-        // Sync to LocalStorage as backup
-        storage.saveTransactions(normalizedTransactions);
-        
-        setTransactions(normalizedTransactions);
+        storage.saveTransactions(fixedTransactions);
+        setTransactions(fixedTransactions);
         setLoading(false);
         return;
       }
       
-      // Fallback to LocalStorage if MongoDB is empty
-      console.log('No transactions in MongoDB, falling back to LocalStorage...');
-      const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
-      
-      const normalizedTransactions = loadedTransactions.map((t, index) => ({
-        ...t,
-        serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
-      }));
-      
-      if (loadedTransactions.some(t => t.serialNumber === 0)) {
-        storage.saveTransactions(normalizedTransactions);
-      }
-      
-      setTransactions(normalizedTransactions);
-      
-    } catch (error) {
-      console.error('Error loading transactions from MongoDB:', error);
       // Fallback to LocalStorage
       const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
       
-      const normalizedTransactions = loadedTransactions.map((t, index) => ({
+      // Sort by serial number
+      const sortedTransactions = loadedTransactions.sort((a, b) => a.serialNumber - b.serialNumber);
+      
+      // Fix any serial number issues
+      const normalizedTransactions = sortedTransactions.map((t, index) => ({
         ...t,
-        serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
+        serialNumber: index + 1
       }));
       
-      if (loadedTransactions.some(t => t.serialNumber === 0)) {
-        storage.saveTransactions(normalizedTransactions);
-      }
+      storage.saveTransactions(normalizedTransactions);
+      setTransactions(normalizedTransactions);
       
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      const sortedTransactions = loadedTransactions.sort((a, b) => a.serialNumber - b.serialNumber);
+      const normalizedTransactions = sortedTransactions.map((t, index) => ({
+        ...t,
+        serialNumber: index + 1
+      }));
       setTransactions(normalizedTransactions);
     } finally {
       setLoading(false);
@@ -172,9 +155,25 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     }
   };
 
+  // Fix the createNewTransaction() function:
   const createNewTransaction = (): Transaction => {
-    // Simple: Next serial = current transactions count + 1
-    const nextSerial = transactions.length + 1;
+    // FIX: Calculate from CURRENT transactions in state, not LocalStorage
+    let nextSerial = 1;
+    
+    if (transactions.length > 0) {
+      // Get max serial number from CURRENT transactions in state
+      const maxSerial = Math.max(...transactions.map(t => t.serialNumber));
+      nextSerial = maxSerial + 1;
+    } else {
+      // Only check LocalStorage if state is empty
+      const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      if (storedTransactions.length > 0) {
+        const maxSerial = Math.max(...storedTransactions.map(t => t.serialNumber));
+        nextSerial = maxSerial + 1;
+      }
+    }
+    
+    console.log('Creating new transaction. Current max serial:', nextSerial - 1, 'Next serial:', nextSerial);
     
     return {
       id: `temp-${Date.now()}`,
@@ -215,8 +214,14 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   const totals = calculateTotals();
 
+  // Also update the handleAddTransaction to log debugging:
   const handleAddTransaction = () => {
+    console.log('Adding new transaction. Current transactions count:', transactions.length);
+    console.log('Current serial numbers:', transactions.map(t => t.serialNumber));
+    
     const newTransaction = createNewTransaction();
+    
+    console.log('New transaction serial:', newTransaction.serialNumber);
     
     setTransactions([...transactions, newTransaction]);
     setEditingId(newTransaction.id);
