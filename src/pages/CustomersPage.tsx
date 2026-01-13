@@ -671,25 +671,8 @@ const CustomersPage: React.FC = () => {
             <div className="relative w-full max-w-4xl">
               <AadhaarUpload
                 onDataExtracted={(data) => {
-                  // Create customer from extracted data
-                  const newCustomer: Customer = {
-                    id: Date.now().toString(),
-                    aadhaarNumber: data.aadhaarNumber || '',
-                    fullName: data.fullName || '',
-                    gender: (data.gender as 'Male' | 'Female' | 'Other') || 'Male',
-                    dateOfBirth: data.dateOfBirth || '',
-                    address: data.address || '',
-                    contactNumber: data.contactNumber || '',
-                    email: data.email || '',
-                    createdAt: new Date().toISOString().split('T')[0],
-                    isActive: true,
-                    projects: []
-                  };
-                  
-                  // Add to localStorage as fallback
-                  const updatedCustomers = storage.addCustomer(newCustomer);
-                  setCustomers(updatedCustomers);
-                  setSelectedCustomer(newCustomer);
+                  // Call the proper save function that saves to MongoDB
+                  handleCustomerCreated(data);
                   setShowAadhaarUpload(false);
                 }}
                 onCancel={() => setShowAadhaarUpload(false)}
