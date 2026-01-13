@@ -105,7 +105,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
                         })}
                       </span>
                       <button
-                        onClick={() => setIsEditingMemberSince(true)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsEditingMemberSince(true);
+                        }}
                         className="p-1 hover:bg-gray-200 rounded"
                       >
                         <Edit2 className="w-3 h-3" />
@@ -119,7 +122,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
           
           <div className="flex gap-1">
             <button
-              onClick={() => onEdit(customer)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(customer);
+              }}
               className="p-2 text-gray-600 hover:bg-white hover:text-green-600 rounded-lg transition-colors"
               title="Edit Customer"
             >
@@ -173,7 +179,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">
           <button
-            onClick={() => onViewTransactions(customer.id)}
+            onClick={(e) => {
+              e.stopPropagation(); // THIS IS THE CRITICAL FIX!
+              onViewTransactions(customer.id);
+            }}
             className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
           >
             View Accounting
