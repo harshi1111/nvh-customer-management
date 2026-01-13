@@ -1,8 +1,10 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
+import crypto from 'crypto'; // Added import
 import { AadhaarEncryption } from '../utils/encryption';
 
 export interface ICustomer extends Document {
   aadhaarNumber: string;
+  aadhaarHash: string; // Added field to interface
   fullName: string;
   gender: 'Male' | 'Female' | 'Other';
   dateOfBirth: string;
@@ -33,6 +35,18 @@ const CustomerSchema: Schema = new Schema({
         return AadhaarEncryption.mask(AadhaarEncryption.decrypt(value));
       }
       return value;
+    }
+  },
+  aadhaarHash: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows null values
+    trim: true,
+    set: function(value: string) {
+      if (!value) return null;
+      const cleanAadhaar = value.replace(/\s/g, '');
+      // Create a deterministic hash for duplicate checking
+      return crypto.createHash('sha256').update(cleanAadhaar).digest('hex');
     }
   },
   fullName: {
@@ -98,6 +112,7 @@ const CustomerSchema: Schema = new Schema({
 
 // Create indexes for faster queries
 CustomerSchema.index({ aadhaarNumber: 1 }, { unique: true });
+CustomerSchema.index({ aadhaarHash: 1 }, { unique: true, sparse: true }); // Added index for aadhaarHash
 CustomerSchema.index({ fullName: 'text', contactNumber: 'text' });
 
 // Virtual for getting the original Aadhaar (decrypted) - use with caution
