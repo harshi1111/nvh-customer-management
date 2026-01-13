@@ -1,12 +1,10 @@
-// pages/AccountingPage.tsx
+// pages/AccountingPage.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Customer, Project } from '../types';
 import { storage } from '../utils/storage';
-import { customerApi, projectApi } from '../utils/api'; // ADD THIS IMPORT
+import { customerApi, projectApi } from '../utils/api';
 import ExpenseTable from '../components/ExpenseTable';
-
-// Add this import at the top
 import ProjectManagement from '../components/ProjectManagement';
 
 import { 
@@ -24,7 +22,6 @@ import {
   XCircle
 } from 'lucide-react';
 
-// Add project state to the component
 const AccountingPage: React.FC = () => {
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
@@ -39,7 +36,6 @@ const AccountingPage: React.FC = () => {
     transactionCount: 0
   });
 
-  // Load customer data with migration - UPDATED FOR MONGODB
   useEffect(() => {
     if (customerId) {
       loadCustomerData();
@@ -55,9 +51,11 @@ const AccountingPage: React.FC = () => {
       const customerResponse = await customerApi.getById(customerId!);
       console.log('MongoDB customer response:', customerResponse);
       
-      const mongoCustomer = customerResponse.data || customerResponse;
+      // FIX: Handle the nested response structure: data.customer
+      const mongoCustomer = customerResponse.data?.customer || customerResponse.data || customerResponse;
+      console.log('Extracted customer data:', mongoCustomer);
       
-      if (mongoCustomer) {
+      if (mongoCustomer && mongoCustomer._id) {
         // Map MongoDB customer to frontend format
         const customerData: Customer = {
           id: mongoCustomer._id || mongoCustomer.id,
@@ -72,7 +70,6 @@ const AccountingPage: React.FC = () => {
           createdAt: mongoCustomer.createdAt ? new Date(mongoCustomer.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           isActive: mongoCustomer.isActive !== undefined ? mongoCustomer.isActive : true,
           projects: mongoCustomer.projects || []
-          // REMOVED: updatedAt: mongoCustomer.updatedAt || '' - This field doesn't exist in Customer type
         };
         
         console.log('Mapped customer data:', customerData);
@@ -86,6 +83,7 @@ const AccountingPage: React.FC = () => {
           const projectsResponse = await projectApi.getCustomerProjects(customerId!);
           console.log('MongoDB projects response:', projectsResponse);
           
+          // Handle different response formats
           if (projectsResponse.data && Array.isArray(projectsResponse.data)) {
             projects = projectsResponse.data.map((proj: any) => ({
               id: proj._id || proj.id,
@@ -179,6 +177,8 @@ const AccountingPage: React.FC = () => {
         
         setLoading(false);
         return;
+      } else {
+        console.error('Customer not found in MongoDB response or missing _id:', mongoCustomer);
       }
     } catch (error) {
       console.error('Failed to load customer from MongoDB:', error);
@@ -188,6 +188,7 @@ const AccountingPage: React.FC = () => {
     console.log('Falling back to localStorage...');
     const loadedCustomer = storage.getCustomerById(customerId!);
     if (loadedCustomer) {
+      console.log('Found customer in localStorage:', loadedCustomer.fullName);
       setCustomer(loadedCustomer);
       
       const projects = storage.getCustomerProjects(customerId!);
@@ -456,7 +457,7 @@ const AccountingPage: React.FC = () => {
           {selectedProjectId && (
             <ExpenseTable 
               customerId={customerId!}
-              projectId={selectedProjectId} // Pass projectId
+              projectId={selectedProjectId}
               customerName={customer?.fullName || ''}
               onTransactionsChange={reloadFinancialSummary}
             />
