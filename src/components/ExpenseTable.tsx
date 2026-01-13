@@ -1,7 +1,8 @@
-// components/ExpenseTable.tsx
+// components/ExpenseTable.tsx - UPDATED WITH MONGODB SUPPORT
 import React, { useState, useEffect } from 'react';
 import { ExpenseType, expenseConfig, Transaction } from '../types';
 import { storage } from '../utils/storage';
+import { transactionApi } from '../utils/api'; // ADD THIS IMPORT
 import { 
   Plus, 
   Trash2, 
@@ -18,22 +19,19 @@ import {
   TrendingDown
 } from 'lucide-react';
 
-// Update the interface to include projectId
 interface ExpenseTableProps {
   customerId: string;
-  projectId: string; // Add this
+  projectId: string;
   customerName: string;
   onTransactionsChange?: () => void;
 }
 
-// Update the component to use projectId
 const ExpenseTable: React.FC<ExpenseTableProps> = ({ 
   customerId, 
-  projectId, // Add this
+  projectId,
   customerName, 
   onTransactionsChange 
 }) => {
-  // State management
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string>('');
@@ -41,55 +39,147 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
-  // Load transactions on component mount
+  // Load transactions from both MongoDB and LocalStorage
   useEffect(() => {
     loadTransactions();
-  }, [customerId, projectId]); // Add projectId to dependency array
+  }, [customerId, projectId]);
 
-  // Show notification and auto-hide
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Load transactions from storage - REMOVED: Don't create initial transaction
-  const loadTransactions = () => {
+  // Load transactions from MongoDB first, then fallback to LocalStorage
+  const loadTransactions = async () => {
     setLoading(true);
     try {
+      // Try to load from MongoDB first
+      const response = await transactionApi.getCustomerTransactions(customerId, projectId);
+      console.log('MongoDB transactions response:', response);
+      
+      let mongoTransactions: Transaction[] = [];
+      
+      if (response && response.data && Array.isArray(response.data)) {
+        mongoTransactions = response.data.map((t: any) => ({
+          id: t._id || t.id,
+          customerId: t.customerId || customerId,
+          projectId: t.projectId || projectId,
+          serialNumber: t.serialNumber || 0,
+          expenseType: t.expenseType || 'LABOUR_CHARGES',
+          quantity: t.quantity || undefined,
+          debitAmount: t.debitAmount || 0,
+          creditAmount: t.creditAmount || 0,
+          description: t.description || '',
+          transactionDate: t.transactionDate || t.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+          createdAt: t.createdAt || new Date().toISOString()
+        }));
+      } else if (response && Array.isArray(response)) {
+        mongoTransactions = response.map((t: any) => ({
+          id: t._id || t.id,
+          customerId: t.customerId || customerId,
+          projectId: t.projectId || projectId,
+          serialNumber: t.serialNumber || 0,
+          expenseType: t.expenseType || 'LABOUR_CHARGES',
+          quantity: t.quantity || undefined,
+          debitAmount: t.debitAmount || 0,
+          creditAmount: t.creditAmount || 0,
+          description: t.description || '',
+          transactionDate: t.transactionDate || t.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+          createdAt: t.createdAt || new Date().toISOString()
+        }));
+      }
+      
+      if (mongoTransactions.length > 0) {
+        // Normalize serial numbers
+        const normalizedTransactions = mongoTransactions.map((t, index) => ({
+          ...t,
+          serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
+        }));
+        
+        // Sync to LocalStorage as backup
+        storage.saveTransactions(normalizedTransactions);
+        
+        setTransactions(normalizedTransactions);
+        setLoading(false);
+        return;
+      }
+      
+      // Fallback to LocalStorage if MongoDB is empty
+      console.log('No transactions in MongoDB, falling back to LocalStorage...');
       const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
       
-      // Normalize serial numbers if any are 0
       const normalizedTransactions = loadedTransactions.map((t, index) => ({
         ...t,
         serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
       }));
       
-      // Save normalized transactions back if needed
       if (loadedTransactions.some(t => t.serialNumber === 0)) {
         storage.saveTransactions(normalizedTransactions);
       }
       
       setTransactions(normalizedTransactions);
-      setLoading(false);
+      
     } catch (error) {
-      console.error('Error loading transactions:', error);
-      showNotification('error', 'Failed to load transactions');
+      console.error('Error loading transactions from MongoDB:', error);
+      // Fallback to LocalStorage
+      const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      
+      const normalizedTransactions = loadedTransactions.map((t, index) => ({
+        ...t,
+        serialNumber: t.serialNumber === 0 ? index + 1 : t.serialNumber
+      }));
+      
+      if (loadedTransactions.some(t => t.serialNumber === 0)) {
+        storage.saveTransactions(normalizedTransactions);
+      }
+      
+      setTransactions(normalizedTransactions);
+    } finally {
       setLoading(false);
     }
   };
 
-  // Create a new transaction object
+  // Save transaction to MongoDB AND LocalStorage
+  const saveTransactionToMongoDB = async (transaction: Transaction) => {
+    try {
+      const transactionData = {
+        customerId: transaction.customerId,
+        projectId: transaction.projectId,
+        serialNumber: transaction.serialNumber,
+        expenseType: transaction.expenseType,
+        quantity: transaction.quantity,
+        debitAmount: transaction.debitAmount,
+        creditAmount: transaction.creditAmount,
+        description: transaction.description,
+        transactionDate: transaction.transactionDate,
+        createdAt: transaction.createdAt
+      };
+      
+      let response;
+      
+      if (transaction.id && !transaction.id.startsWith('temp-')) {
+        // Update existing transaction
+        response = await transactionApi.update(transaction.id, transactionData);
+      } else {
+        // Create new transaction
+        response = await transactionApi.create(transactionData);
+      }
+      
+      return response.data || response;
+    } catch (error) {
+      console.error('Failed to save transaction to MongoDB:', error);
+      throw error;
+    }
+  };
+
   const createNewTransaction = (): Transaction => {
-    // Get all stored transactions to calculate next serial
     const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
     
     let nextSerial = 1;
     if (storedTransactions.length > 0) {
-      // Find max serial number in stored transactions
       const maxSerial = Math.max(...storedTransactions.map(t => t.serialNumber));
       nextSerial = maxSerial + 1;
     }
-    // else: no transactions at all, use 1
     
     return {
       id: `temp-${Date.now()}`,
@@ -106,7 +196,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     };
   };
 
-  // Calculate totals
   const calculateTotals = () => {
     let totalDebit = 0;
     let totalCredit = 0;
@@ -131,29 +220,24 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   const totals = calculateTotals();
 
-  // Handle adding new transaction
   const handleAddTransaction = () => {
     const newTransaction = createNewTransaction();
     
-    // Add to state
     setTransactions([...transactions, newTransaction]);
     setEditingId(newTransaction.id);
     setIsAdding(true);
     
-    // Scroll to the new row
     setTimeout(() => {
       const element = document.getElementById(`transaction-${newTransaction.id}`);
       element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
   };
 
-  // Handle updating transaction
   const handleUpdateTransaction = (id: string, field: keyof Transaction, value: any) => {
     const updatedTransactions = transactions.map(transaction => {
       if (transaction.id === id) {
         const config = expenseConfig[transaction.expenseType];
         
-        // Special handling for expense type change
         if (field === 'expenseType') {
           const newConfig = expenseConfig[value as ExpenseType];
           return {
@@ -165,26 +249,22 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
           };
         }
         
-        // Prevent credit for non-investment expenses
         if (field === 'creditAmount' && transaction.expenseType !== 'INVESTMENT') {
           return transaction;
         }
         
-        // Prevent debit for investment
         if (field === 'debitAmount' && transaction.expenseType === 'INVESTMENT') {
           return transaction;
         }
         
-        // Auto-calculate based on quantity for labour
         if (field === 'quantity' && transaction.expenseType === 'LABOUR_CHARGES') {
-          const rate = 500; // Default labour rate per person
+          const rate = 500;
           const debit = (value || 0) * rate;
           return { ...transaction, quantity: value, debitAmount: debit };
         }
         
-        // Auto-calculate based on quantity for cow/goat dung
         if (field === 'quantity' && transaction.expenseType === 'COW_GOAT_DUNG') {
-          const rate = 1000; // Default rate per Maatu Vandi
+          const rate = 1000;
           const debit = (value || 0) * rate;
           return { ...transaction, quantity: value, debitAmount: debit };
         }
@@ -197,8 +277,8 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     setTransactions(updatedTransactions);
   };
 
-  // Update handleSaveTransaction to use projectId for getNextSerialNumber
-  const handleSaveTransaction = (id: string) => {
+  // UPDATED: Save transaction to MongoDB AND LocalStorage
+  const handleSaveTransaction = async (id: string) => {
     setSaveStatus('saving');
     
     try {
@@ -207,7 +287,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       
       const config = expenseConfig[transaction.expenseType];
       
-      // Validation
       if (config.isCreditOnly && transaction.debitAmount > 0) {
         showNotification('error', 'Investment can only have credit amount!');
         setSaveStatus('error');
@@ -220,15 +299,26 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
         return;
       }
       
-      // Check if transaction exists in STORAGE
+      // Save to MongoDB first
+      const mongoResponse = await saveTransactionToMongoDB(transaction);
+      console.log('MongoDB save response:', mongoResponse);
+      
+      // Update transaction with MongoDB ID if new
+      let updatedTransaction = transaction;
+      if (transaction.id.startsWith('temp-') && mongoResponse) {
+        updatedTransaction = {
+          ...transaction,
+          id: mongoResponse._id || mongoResponse.id || transaction.id
+        };
+      }
+      
+      // Save to LocalStorage as backup
       const existingInStorage = storage.getCustomerTransactions(customerId, projectId)
         .some(t => t.id === id);
       
       if (existingInStorage) {
-        // Update existing
-        storage.updateTransaction(transaction);
+        storage.updateTransaction(updatedTransaction);
       } else {
-        // For new transactions, ensure we get proper serial number
         const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
         let nextSerial = 1;
         
@@ -238,23 +328,22 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
         }
         
         const transactionToSave = {
-          ...transaction,
+          ...updatedTransaction,
           serialNumber: nextSerial
         };
         storage.addTransaction(transactionToSave);
-        
-        // Update state with proper serial
-        setTransactions(transactions.map(t => 
-          t.id === id ? transactionToSave : t
-        ));
       }
+      
+      // Update state
+      setTransactions(transactions.map(t => 
+        t.id === id ? updatedTransaction : t
+      ));
       
       setEditingId('');
       setIsAdding(false);
       setSaveStatus('saved');
-      showNotification('success', 'Transaction saved successfully!');
+      showNotification('success', 'Transaction saved successfully to database!');
       
-      // Notify parent if callback exists
       if (onTransactionsChange) {
         onTransactionsChange();
       }
@@ -262,59 +351,87 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     } catch (error) {
       console.error('Error saving transaction:', error);
       setSaveStatus('error');
-      showNotification('error', 'Failed to save transaction');
-    }
-  };
-
-  // Update handleDeleteTransaction to use projectId
-  const handleDeleteTransaction = (id: string) => {
-    if (transactions.length === 0) return;
-    
-    if (window.confirm('Are you sure you want to delete this transaction?')) {
-      try {
-        // 1. Delete from storage (only if it exists in storage)
+      showNotification('error', 'Failed to save transaction to database. Saved locally only.');
+      
+      // Fallback: Save to LocalStorage only
+      const transaction = transactions.find(t => t.id === id);
+      if (transaction) {
         const existingInStorage = storage.getCustomerTransactions(customerId, projectId)
           .some(t => t.id === id);
         
         if (existingInStorage) {
-          storage.deleteTransaction(id);
+          storage.updateTransaction(transaction);
+        } else {
+          storage.addTransaction(transaction);
         }
         
-        // 2. Remove from state
-        const updatedTransactions = transactions.filter(t => t.id !== id);
-        
-        // 3. Recalculate serial numbers properly
-        const renumberedTransactions = updatedTransactions.map((t, index) => ({
-          ...t,
-          serialNumber: index + 1 // Always start from 1
-        }));
-        
-        // 4. Update state
-        setTransactions(renumberedTransactions);
-        
-        // 5. Update ALL transactions in storage with new serials
-        renumberedTransactions.forEach(t => {
-          if (!t.id.startsWith('temp-')) {
-            storage.updateTransaction(t);
-          }
-        });
-        
-        showNotification('success', 'Transaction deleted successfully!');
-        
-        // 6. Notify parent if callback exists
-        if (onTransactionsChange) {
-          onTransactionsChange();
-        }
-        
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-        showNotification('error', 'Failed to delete transaction');
+        showNotification('success', 'Transaction saved locally only.');
       }
     }
   };
 
-  // Handle save all
-  const handleSaveAll = () => {
+  // UPDATED: Delete from MongoDB AND LocalStorage
+  const handleDeleteTransaction = async (id: string) => {
+    if (transactions.length === 0) return;
+    
+    if (!window.confirm('Are you sure you want to delete this transaction?')) {
+      return;
+    }
+    
+    try {
+      const transaction = transactions.find(t => t.id === id);
+      
+      // Delete from MongoDB if it has a real ID (not temp-)
+      if (transaction && !transaction.id.startsWith('temp-')) {
+        try {
+          await transactionApi.delete(transaction.id);
+          console.log('Deleted from MongoDB:', transaction.id);
+        } catch (mongoError) {
+          console.error('Failed to delete from MongoDB:', mongoError);
+          // Continue with LocalStorage deletion anyway
+        }
+      }
+      
+      // Delete from LocalStorage
+      const existingInStorage = storage.getCustomerTransactions(customerId, projectId)
+        .some(t => t.id === id);
+      
+      if (existingInStorage) {
+        storage.deleteTransaction(id);
+      }
+      
+      // Remove from state
+      const updatedTransactions = transactions.filter(t => t.id !== id);
+      
+      // Recalculate serial numbers
+      const renumberedTransactions = updatedTransactions.map((t, index) => ({
+        ...t,
+        serialNumber: index + 1
+      }));
+      
+      // Update state
+      setTransactions(renumberedTransactions);
+      
+      // Update LocalStorage with new serials
+      renumberedTransactions.forEach(t => {
+        if (!t.id.startsWith('temp-')) {
+          storage.updateTransaction(t);
+        }
+      });
+      
+      showNotification('success', 'Transaction deleted successfully!');
+      
+      if (onTransactionsChange) {
+        onTransactionsChange();
+      }
+      
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      showNotification('error', 'Failed to delete transaction');
+    }
+  };
+
+  const handleSaveAll = async () => {
     if (transactions.length === 0) {
       showNotification('error', 'No transactions to save');
       return;
@@ -323,30 +440,34 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     setSaveStatus('saving');
     
     try {
+      // Save all transactions to MongoDB
+      for (const transaction of transactions) {
+        if (!transaction.id.startsWith('temp-')) {
+          await saveTransactionToMongoDB(transaction);
+        }
+      }
+      
+      // Save all to LocalStorage
       const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
       
-      // Process all transactions in state
       transactions.forEach((transaction, index) => {
         if (transaction.id.startsWith('temp-')) {
-          // For new transactions, assign proper serial number
           const transactionToSave = {
             ...transaction,
             serialNumber: index + 1
           };
           storage.addTransaction(transactionToSave);
         } else {
-          // For existing transactions, update
           storage.updateTransaction(transaction);
         }
       });
       
       setSaveStatus('saved');
-      showNotification('success', 'All transactions saved successfully!');
+      showNotification('success', 'All transactions saved successfully to database!');
       
-      // Reload transactions from storage to get proper IDs and serials
+      // Reload transactions
       loadTransactions();
       
-      // Notify parent if callback exists
       if (onTransactionsChange) {
         onTransactionsChange();
       }
@@ -354,11 +475,23 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     } catch (error) {
       console.error('Error saving all transactions:', error);
       setSaveStatus('error');
-      showNotification('error', 'Failed to save transactions');
+      showNotification('error', 'Failed to save all transactions to database. Saved locally only.');
+      
+      // Fallback: Save to LocalStorage only
+      transactions.forEach((transaction, index) => {
+        if (transaction.id.startsWith('temp-')) {
+          const transactionToSave = {
+            ...transaction,
+            serialNumber: index + 1
+          };
+          storage.addTransaction(transactionToSave);
+        } else {
+          storage.updateTransaction(transaction);
+        }
+      });
     }
   };
 
-  // Update CSV export
   const handleExportCSV = () => {
     if (transactions.length === 0) {
       showNotification('error', 'No transactions to export');
@@ -392,7 +525,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     showNotification('success', 'Exported successfully as CSV!');
   };
 
-  // Get expense type options
   const expenseTypeOptions = Object.entries(expenseConfig).map(([key, config]) => ({
     value: key,
     label: config.label,
@@ -412,7 +544,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      {/* Header with Actions */}
       <div className="mb-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
           <div>
@@ -440,12 +571,11 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
               ) : (
                 <Save className="w-5 h-5" />
               )}
-              Save All
+              Save All to Database
             </button>
           </div>
         </div>
 
-        {/* Notification */}
         {notification && (
           <div className={`mb-4 p-3 rounded-lg flex items-center gap-3 ${
             notification.type === 'success' 
@@ -462,7 +592,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
         )}
       </div>
 
-      {/* Table */}
       {transactions.length > 0 ? (
         <>
           <div className="overflow-x-auto rounded-lg border border-gray-200 mb-6">
@@ -492,14 +621,12 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         isEditing ? 'bg-blue-50' : ''
                       }`}
                     >
-                      {/* Serial Number */}
                       <td className="p-4">
                         <div className="font-medium text-gray-800">
                           {transaction.serialNumber}
                         </div>
                       </td>
                       
-                      {/* Date */}
                       <td className="p-4">
                         {isEditing ? (
                           <input
@@ -519,7 +646,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         )}
                       </td>
                       
-                      {/* Expense Type */}
                       <td className="p-4">
                         {isEditing ? (
                           <select
@@ -538,7 +664,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         )}
                       </td>
                       
-                      {/* Quantity (Conditional) */}
                       <td className="p-4">
                         {config.hasQuantity ? (
                           isEditing ? (
@@ -565,7 +690,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         )}
                       </td>
                       
-                      {/* Debit Amount */}
                       <td className="p-4">
                         {isEditing ? (
                           <div className="relative">
@@ -591,7 +715,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         )}
                       </td>
                       
-                      {/* Credit Amount */}
                       <td className="p-4">
                         {isEditing ? (
                           <div className="relative">
@@ -617,7 +740,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         )}
                       </td>
                       
-                      {/* Description */}
                       <td className="p-4">
                         {isEditing ? (
                           <input
@@ -634,7 +756,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         )}
                       </td>
                       
-                      {/* Actions */}
                       <td className="p-4">
                         <div className="flex gap-2">
                           {isEditing ? (
@@ -656,7 +777,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                                   setEditingId('');
                                   setIsAdding(false);
                                   if (isAdding) {
-                                    // Remove unsaved new transaction
                                     setTransactions(transactions.filter(t => t.id !== transaction.id));
                                   }
                                 }}
@@ -693,7 +813,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </table>
           </div>
 
-          {/* New Transaction Button */}
           <div className="mt-6 flex justify-center">
             <button
               onClick={handleAddTransaction}
@@ -704,7 +823,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </button>
           </div>
 
-          {/* Enhanced Totals Section */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Calculator className="w-5 h-5" />
@@ -712,7 +830,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </h3>
             
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              {/* Total Transactions */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -727,7 +844,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 </div>
               </div>
               
-              {/* Total Debit */}
               <div className="bg-red-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -745,7 +861,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 </div>
               </div>
               
-              {/* Total Credit */}
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -763,7 +878,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 </div>
               </div>
               
-              {/* Balance */}
               <div className={`p-4 rounded-lg ${totals.isProfit ? 'bg-green-50' : 'bg-red-50'}`}>
                 <div className="flex items-center justify-between">
                   <div>
@@ -794,7 +908,6 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
           </div>
         </>
       ) : (
-        /* Empty State - Table is empty */
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Calculator className="w-8 h-8 text-gray-400" />
