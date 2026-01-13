@@ -46,7 +46,7 @@ const ReportPage: React.FC = () => {
           if (response && Array.isArray(response)) {
             allTransactions = [...allTransactions, ...response.map(t => ({ ...t, customerId: customer.id }))];
           } else if (response && response.data && Array.isArray(response.data)) {
-            allTransactions = [...allTransactions, ...response.data.map(t => ({ ...t, customerId: customer.id }))];
+            allTransactions = [...allTransactions, ...response.data.map((t: any) => ({ ...t, customerId: customer.id }))];
           }
         } catch (error) {
           console.error(`Failed to load transactions for customer ${customer.id}:`, error);
