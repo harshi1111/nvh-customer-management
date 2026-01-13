@@ -1,26 +1,19 @@
+// pages/CustomersPage.tsx - UPDATED WITH MONGODB SYNC
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Customer } from '../types';
-import { Search, Plus, Filter, User, CheckCircle, XCircle, Edit, Users, Trash2 } from 'lucide-react'; // Add Trash2
+import { Search, Plus, Filter, User, CheckCircle, XCircle, Edit, Users, Trash2 } from 'lucide-react';
 import CustomerCard from '../components/CustomerCard';
 import ManualCustomerForm from '../components/ManualCustomerForm';
 import AadhaarUpload from '../components/AadhaarUpload';
 import { storage } from '../utils/storage';
+import { customerApi } from '../utils/api'; // ADD THIS IMPORT
 
 const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
   
-  // Load customers from localStorage on initial render
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    const savedCustomers = storage.getCustomers();
-    return savedCustomers.map((customer: any) => ({
-      ...customer,
-      // Ensure proper types
-      gender: customer.gender as 'Male' | 'Female' | 'Other',
-      isActive: customer.isActive !== undefined ? customer.isActive : true
-    }));
-  });
-  
+  // Load customers from MongoDB on initial render
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -28,54 +21,113 @@ const CustomersPage: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Handle new customer creation
-  const handleCustomerCreated = (customerData: any) => {
-    if (editingCustomer) {
-      // Update existing customer
-      const updatedCustomer: Customer = {
-        ...editingCustomer,
-        aadhaarNumber: customerData.aadhaarNumber,
-        fullName: customerData.fullName,
-        gender: customerData.gender,
-        dateOfBirth: customerData.dateOfBirth,
-        address: customerData.address,
-        contactNumber: customerData.contactNumber,
-        email: customerData.email
-      };
+  // Load customers from MongoDB
+  useEffect(() => {
+    loadCustomersFromMongoDB();
+  }, []);
+
+  const loadCustomersFromMongoDB = async () => {
+    try {
+      setLoading(true);
+      const response = await customerApi.getAll();
       
-      // Update in localStorage
-      const updatedCustomers = storage.updateCustomer(updatedCustomer);
-      
-      // Update state
-      setCustomers(updatedCustomers);
-      setSelectedCustomer(updatedCustomer);
-      setEditingCustomer(null);
-    } else {
-      // Create new customer
-      const newCustomer: Customer = {
-        id: Date.now().toString(),
-        aadhaarNumber: customerData.aadhaarNumber,
-        fullName: customerData.fullName,
-        gender: customerData.gender,
-        dateOfBirth: customerData.dateOfBirth,
-        address: customerData.address,
-        contactNumber: customerData.contactNumber,
-        email: customerData.email,
-        createdAt: new Date().toISOString().split('T')[0],
-        isActive: true,
-        projects: [] // Add empty projects array
-      };
-      
-      // Add to localStorage
-      const updatedCustomers = storage.addCustomer(newCustomer);
-      
-      // Update state
-      setCustomers(updatedCustomers);
-      setSelectedCustomer(newCustomer);
+      if (response.success && response.data) {
+        // Map MongoDB customers to frontend format
+        const mongoCustomers: Customer[] = response.data.map((customer: any) => ({
+          id: customer._id || customer.id,
+          aadhaarNumber: customer.aadhaarNumber || '',
+          fullName: customer.fullName || '',
+          gender: (customer.gender as 'Male' | 'Female' | 'Other') || 'Male',
+          dateOfBirth: customer.dateOfBirth || '',
+          address: customer.address || '',
+          contactNumber: customer.contactNumber || '',
+          email: customer.email || '',
+          profileImage: customer.profileImage || '',
+          createdAt: customer.createdAt ? new Date(customer.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          isActive: customer.isActive !== undefined ? customer.isActive : true,
+          projects: customer.projects || []
+        }));
+        
+        setCustomers(mongoCustomers);
+        
+        // Also sync to LocalStorage as backup
+        storage.saveCustomers(mongoCustomers);
+      }
+    } catch (error) {
+      console.error('Failed to load from MongoDB:', error);
+      // Fallback to LocalStorage
+      const localCustomers = storage.getCustomers();
+      setCustomers(localCustomers);
+    } finally {
+      setLoading(false);
     }
-    
-    setShowCustomerForm(false);
+  };
+
+  // Handle new customer creation - UPDATED FOR MONGODB
+  const handleCustomerCreated = async (customerData: any) => {
+    try {
+      // Format customer data for MongoDB
+      const customerForMongoDB = {
+        aadhaarNumber: customerData.aadhaarNumber.replace(/\s/g, ''),
+        fullName: customerData.fullName.trim(),
+        gender: customerData.gender,
+        dateOfBirth: customerData.dateOfBirth,
+        address: customerData.address.trim(),
+        contactNumber: customerData.contactNumber,
+        email: customerData.email.trim() || '',
+        isActive: customerData.isActive !== undefined ? customerData.isActive : true,
+        createdAt: customerData.createdAt || new Date().toISOString()
+      };
+      
+      let savedCustomer;
+      
+      if (editingCustomer) {
+        // Update existing customer in MongoDB
+        const response = await customerApi.update(editingCustomer.id, customerForMongoDB);
+        savedCustomer = response.data || response;
+      } else {
+        // Create new customer in MongoDB
+        const response = await customerApi.create(customerForMongoDB);
+        savedCustomer = response.data || response;
+      }
+      
+      // Map to frontend format
+      const frontendCustomer: Customer = {
+        id: savedCustomer._id || savedCustomer.id || Date.now().toString(),
+        aadhaarNumber: savedCustomer.aadhaarNumber || customerForMongoDB.aadhaarNumber,
+        fullName: savedCustomer.fullName || customerForMongoDB.fullName,
+        gender: (savedCustomer.gender as 'Male' | 'Female' | 'Other') || customerForMongoDB.gender,
+        dateOfBirth: savedCustomer.dateOfBirth || customerForMongoDB.dateOfBirth,
+        address: savedCustomer.address || customerForMongoDB.address,
+        contactNumber: savedCustomer.contactNumber || customerForMongoDB.contactNumber,
+        email: savedCustomer.email || customerForMongoDB.email,
+        profileImage: savedCustomer.profileImage || '',
+        createdAt: savedCustomer.createdAt ? new Date(savedCustomer.createdAt).toISOString().split('T')[0] : customerData.createdAt.split('T')[0],
+        isActive: savedCustomer.isActive !== undefined ? savedCustomer.isActive : true,
+        projects: savedCustomer.projects || []
+      };
+      
+      // Update LocalStorage
+      if (editingCustomer) {
+        storage.updateCustomer(frontendCustomer);
+      } else {
+        storage.addCustomer(frontendCustomer);
+      }
+      
+      // Reload customers from MongoDB to get latest
+      await loadCustomersFromMongoDB();
+      
+      // Set as selected customer
+      setSelectedCustomer(frontendCustomer);
+      setEditingCustomer(null);
+      setShowCustomerForm(false);
+      
+    } catch (error) {
+      console.error('Failed to save customer:', error);
+      alert('Failed to save customer. Please try again.');
+    }
   };
 
   // Handle edit customer
@@ -84,30 +136,41 @@ const CustomersPage: React.FC = () => {
     setShowCustomerForm(true);
   };
 
-  // Handle delete customer
-  const handleDeleteCustomer = (customerId: string) => {
-    // Delete customer from storage (this should also delete their transactions)
-    const updatedCustomers = storage.getCustomers().filter(c => c.id !== customerId);
-    storage.saveCustomers(updatedCustomers);
-    
-    // Also delete customer's transactions from storage
-    storage.deleteCustomerTransactions(customerId);
-    
-    // Also delete customer's projects
-    const allProjects = storage.loadProjects();
-    const updatedProjects = allProjects.filter(p => p.customerId !== customerId);
-    storage.saveProjects(updatedProjects);
-    
-    // Update state
-    setCustomers(updatedCustomers);
-    
-    // If the deleted customer was selected, clear selection
-    if (selectedCustomer && selectedCustomer.id === customerId) {
-      setSelectedCustomer(null);
+  // Handle delete customer - UPDATED FOR MONGODB
+  const handleDeleteCustomer = async (customerId: string) => {
+    if (!window.confirm('Are you sure you want to delete this customer? This will also delete all their projects and transactions!')) {
+      return;
     }
     
-    // Show success message
-    alert('Customer deleted successfully!');
+    try {
+      // 1. Delete from MongoDB
+      await customerApi.delete(customerId);
+      
+      // 2. Delete from LocalStorage
+      const updatedCustomers = storage.getCustomers().filter(c => c.id !== customerId);
+      storage.saveCustomers(updatedCustomers);
+      
+      // 3. Delete customer's transactions from LocalStorage
+      storage.deleteCustomerTransactions(customerId);
+      
+      // 4. Delete customer's projects from LocalStorage
+      const allProjects = storage.loadProjects();
+      const updatedProjects = allProjects.filter(p => p.customerId !== customerId);
+      storage.saveProjects(updatedProjects);
+      
+      // Update state
+      setCustomers(updatedCustomers);
+      
+      // If the deleted customer was selected, clear selection
+      if (selectedCustomer && selectedCustomer.id === customerId) {
+        setSelectedCustomer(null);
+      }
+      
+      alert('Customer deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete customer:', error);
+      alert('Failed to delete customer. Please try again.');
+    }
   };
 
   // Handle view transactions (navigate to accounting)
@@ -115,28 +178,36 @@ const CustomersPage: React.FC = () => {
     navigate(`/accounting/${customerId}`);
   };
 
-  // Toggle customer active/inactive status
-  const toggleCustomerStatus = (customerId: string) => {
+  // Toggle customer active/inactive status - UPDATED FOR MONGODB
+  const toggleCustomerStatus = async (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
-    if (customer) {
+    if (!customer) return;
+    
+    try {
+      // Update in MongoDB
+      await customerApi.toggleStatus(customerId);
+      
+      // Update local state
       const updatedCustomer = {
         ...customer,
         isActive: !customer.isActive
       };
       
-      // Update in localStorage
-      storage.updateCustomer(updatedCustomer);
-      
-      // Update state
       const updatedCustomers = customers.map(c => 
         c.id === customerId ? updatedCustomer : c
       );
       setCustomers(updatedCustomers);
       
+      // Update LocalStorage
+      storage.updateCustomer(updatedCustomer);
+      
       // Update selected customer if it's the one being toggled
       if (selectedCustomer && selectedCustomer.id === customerId) {
         setSelectedCustomer(updatedCustomer);
       }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('Failed to update status. Please try again.');
     }
   };
 
@@ -244,6 +315,17 @@ const CustomersPage: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFilterMenu]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading customers...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -419,7 +501,7 @@ const CustomersPage: React.FC = () => {
                       <CustomerCard
                         customer={customer}
                         onEdit={handleEditCustomer}
-                        onDelete={handleDeleteCustomer} // Pass delete handler
+                        onDelete={handleDeleteCustomer}
                         onViewTransactions={handleViewTransactions}
                       />
                     </div>
@@ -570,29 +652,53 @@ const CustomersPage: React.FC = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="relative w-full max-w-4xl">
               <AadhaarUpload
-                onDataExtracted={(data) => {
-                  // Create customer from extracted data
-                  const newCustomer: Customer = {
-                    id: Date.now().toString(),
-                    aadhaarNumber: data.aadhaarNumber || '',
-                    fullName: data.fullName || '',
-                    gender: (data.gender as 'Male' | 'Female' | 'Other') || 'Male',
-                    dateOfBirth: data.dateOfBirth || '',
-                    address: data.address || '',
-                    contactNumber: data.contactNumber || '',
-                    email: data.email || '',
-                    createdAt: new Date().toISOString().split('T')[0],
-                    isActive: true,
-                    projects: [] // Add empty projects array
-                  };
-                  
-                  // Add to localStorage
-                  const updatedCustomers = storage.addCustomer(newCustomer);
-                  
-                  // Update state
-                  setCustomers(updatedCustomers);
-                  setSelectedCustomer(newCustomer);
-                  setShowAadhaarUpload(false);
+                onDataExtracted={async (data) => {
+                  try {
+                    // Format customer data for MongoDB
+                    const customerForMongoDB = {
+                      aadhaarNumber: data.aadhaarNumber?.replace(/\s/g, '') || '',
+                      fullName: data.fullName || '',
+                      gender: data.gender || 'Male',
+                      dateOfBirth: data.dateOfBirth || '',
+                      address: data.address || '',
+                      contactNumber: data.contactNumber || '',
+                      email: data.email || '',
+                      isActive: true,
+                      createdAt: new Date().toISOString()
+                    };
+                    
+                    // Save to MongoDB
+                    const response = await customerApi.create(customerForMongoDB);
+                    const savedCustomer = response.data || response;
+                    
+                    // Map to frontend format
+                    const frontendCustomer: Customer = {
+                      id: savedCustomer._id || savedCustomer.id || Date.now().toString(),
+                      aadhaarNumber: savedCustomer.aadhaarNumber || customerForMongoDB.aadhaarNumber,
+                      fullName: savedCustomer.fullName || customerForMongoDB.fullName,
+                      gender: (savedCustomer.gender as 'Male' | 'Female' | 'Other') || customerForMongoDB.gender,
+                      dateOfBirth: savedCustomer.dateOfBirth || customerForMongoDB.dateOfBirth,
+                      address: savedCustomer.address || customerForMongoDB.address,
+                      contactNumber: savedCustomer.contactNumber || customerForMongoDB.contactNumber,
+                      email: savedCustomer.email || customerForMongoDB.email,
+                      createdAt: savedCustomer.createdAt ? new Date(savedCustomer.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                      isActive: savedCustomer.isActive !== undefined ? savedCustomer.isActive : true,
+                      projects: savedCustomer.projects || []
+                    };
+                    
+                    // Save to LocalStorage
+                    storage.addCustomer(frontendCustomer);
+                    
+                    // Reload customers
+                    await loadCustomersFromMongoDB();
+                    
+                    // Set as selected customer
+                    setSelectedCustomer(frontendCustomer);
+                    setShowAadhaarUpload(false);
+                  } catch (error) {
+                    console.error('Failed to save customer from Aadhaar:', error);
+                    alert('Failed to save customer. Please try again.');
+                  }
                 }}
                 onCancel={() => setShowAadhaarUpload(false)}
               />
