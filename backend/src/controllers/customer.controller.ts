@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import Customer from '../models/Customer';
 import Project from '../models/Project';
 import Transaction from '../models/Transaction';
+import { AadhaarEncryption } from '../utils/encryption';
+
 
 // Get all customers
 export const getAllCustomers = async (req: Request, res: Response): Promise<void> => {
@@ -95,19 +97,47 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
 // Create new customer
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Check if Aadhaar already exists
-    console.log('Checking Aadhaar:', req.body.aadhaarNumber); // DEBUG
-    const existingCustomer = await Customer.findOne({ 
-      aadhaarNumber: req.body.aadhaarNumber 
-    });
-    console.log('Found existing customer:', existingCustomer); // DEBUG
-    
-    if (existingCustomer) {
-      res.status(400).json({
-        success: false,
-        error: 'Customer with this Aadhaar number already exists'
-      });
-      return;
+    // Check if Aadhaar already exists - FIXED VERSION
+    if (req.body.aadhaarNumber) {
+      const cleanAadhaar = req.body.aadhaarNumber.replace(/\s/g, '');
+      
+      // Get ALL customers and check manually (temporary fix)
+      const allCustomers = await Customer.find({}).select('aadhaarNumber fullName');
+      
+      let existingCustomer = null;
+      
+      // Check each customer's decrypted Aadhaar
+      for (const customer of allCustomers) {
+        // Get the raw stored value (without getter)
+        const storedAadhaar = customer.get('aadhaarNumber', null, { getters: false });
+        
+        if (storedAadhaar && storedAadhaar.length > 20) {
+          // Try to decrypt and compare
+          try {
+            const decrypted = AadhaarEncryption.decrypt(storedAadhaar);
+            if (decrypted === cleanAadhaar) {
+              existingCustomer = customer;
+              break;
+            }
+          } catch (err) {
+            console.log('Failed to decrypt aadhaar for customer:', customer._id);
+          }
+        } else if (storedAadhaar === cleanAadhaar) {
+          // Direct comparison if not encrypted
+          existingCustomer = customer;
+          break;
+        }
+      }
+      
+      console.log('Found existing customer:', existingCustomer ? existingCustomer.fullName : 'None');
+      
+      if (existingCustomer) {
+        res.status(400).json({
+          success: false,
+          error: `Customer with this Aadhaar number already exists: ${existingCustomer.fullName}`
+        });
+        return;
+      }
     }
     
     const customerData = {
