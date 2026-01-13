@@ -31,36 +31,62 @@ const formatPhoneNumber = (phone: string): string => {
   return phone.replace(/\D/g, '').slice(0, 10);
 };
 
-// Add this function for Aadhaar duplicate check - UPDATED TO CHECK MONGODB
+// Add this function for Aadhaar duplicate check - FIXED VERSION
 const checkDuplicateAadhaar = async (aadhaarNumber: string): Promise<boolean> => {
   if (!aadhaarNumber) return false;
   
+  const cleanAadhaar = aadhaarNumber.replace(/\s/g, '');
+  console.log('Checking duplicate for Aadhaar:', cleanAadhaar);
+  
   try {
-    // Check MongoDB via API
+    const token = localStorage.getItem('token');
+    
+    // Get ALL customers to check locally
     const response = await fetch(
-      `https://nvh-customer-management.onrender.com/api/customers?search=${aadhaarNumber}`,
+      `https://nvh-customer-management.onrender.com/api/customers`,
       {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       }
     );
     
-    if (response.ok) {
-      const data = await response.json();
-      return data.count > 0; // If count > 0, Aadhaar exists
+    if (!response.ok) {
+      console.error('Failed to fetch customers:', response.status);
+      return false;
     }
+    
+    const data = await response.json();
+    console.log('Total customers:', data.count);
+    
+    if (!data.data || !Array.isArray(data.data)) {
+      console.error('Invalid response format:', data);
+      return false;
+    }
+    
+    // Check each customer for duplicate
+    for (const customer of data.data) {
+      const customerAadhaar = customer.aadhaarNumber || '';
+      
+      // Log for debugging
+      console.log(`Checking customer: ${customer.fullName}, Aadhaar: ${customerAadhaar}`);
+      
+      // Check if Aadhaar matches (encrypted might show masked version)
+      if (customerAadhaar.includes('XXXX') && customerAadhaar.includes(cleanAadhaar.substring(8, 12))) {
+        console.log('Found duplicate by last 4 digits:', customer.fullName);
+        return true;
+      }
+      
+      // Check contact number too (more reliable)
+      // We'll add this check in the backend
+    }
+    
+    console.log('No duplicates found');
     return false;
+    
   } catch (error) {
     console.error('Failed to check duplicate:', error);
-    // Fallback to localStorage
-    const customers = storage.getCustomers();
-    const cleanAadhaar = aadhaarNumber.replace(/\s/g, '');
-    
-    return customers.some(customer => {
-      const customerAadhaar = customer.aadhaarNumber.replace(/\s/g, '');
-      return customerAadhaar === cleanAadhaar;
-    });
+    return false;
   }
 };
 
