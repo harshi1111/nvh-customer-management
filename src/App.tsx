@@ -40,7 +40,7 @@ const TopBar = () => {
     if (location.pathname === '/') return 'Dashboard';
     if (location.pathname === '/customers') return 'Customer Management';
     if (location.pathname.startsWith('/accounting/')) return 'Customer Accounting';
-    if (location.pathname === '/accounting') return 'Accounting';
+    if (location.pathname === '/accounting') return 'Accounting Dashboard';
     if (location.pathname === '/reports') return 'Reports & Analytics';
     if (location.pathname === '/settings') return 'System Settings';
     return 'NVH Agri Green';
@@ -49,7 +49,7 @@ const TopBar = () => {
   const getPageDescription = () => {
     if (location.pathname === '/') return 'Welcome to your dashboard';
     if (location.pathname === '/customers') return 'Manage your vetiver farming customers';
-    if (location.pathname.startsWith('/accounting/')) return 'Track expenses and investments';
+    if (location.pathname.startsWith('/accounting/')) return 'Track customer expenses and investments';
     if (location.pathname === '/accounting') return 'Financial management system';
     if (location.pathname === '/reports') return 'View analytics and insights';
     if (location.pathname === '/settings') return 'Configure system preferences';
@@ -137,7 +137,7 @@ function App() {
             to="/accounting" 
             onClick={() => setSidebarOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              location.pathname === '/accounting' && !location.pathname.startsWith('/accounting/')
+              location.pathname === '/accounting' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
@@ -167,7 +167,7 @@ function App() {
                 location.pathname === '/settings'
                   ? 'bg-green-50 text-green-700 font-medium'
                   : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
-              }`}
+            }`}
             >
               <Settings className="w-5 h-5" />
               Settings
@@ -229,6 +229,13 @@ function App() {
               </ProtectedRoute>
             } />
             
+            {/* FIXED: This route MUST come before /accounting */}
+            <Route path="/accounting/:customerId" element={
+              <ProtectedRoute>
+                <AccountingPage />
+              </ProtectedRoute>
+            } />
+            
             <Route path="/accounting" element={
               <ProtectedRoute>
                 <AccountingDashboard />
@@ -238,12 +245,6 @@ function App() {
             <Route path="/reports" element={
               <ProtectedRoute>
                 <ReportPage />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/accounting/:customerId" element={
-              <ProtectedRoute>
-                <AccountingPage />
               </ProtectedRoute>
             } />
             

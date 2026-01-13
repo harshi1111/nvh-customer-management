@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Customer, Project } from '../types';
 import { storage } from '../utils/storage';
+import { customerApi, projectApi } from '../utils/api'; // ADD THIS IMPORT
 import ExpenseTable from '../components/ExpenseTable';
 
 // Add this import at the top
@@ -38,27 +39,107 @@ const AccountingPage: React.FC = () => {
     transactionCount: 0
   });
 
-  // Load customer data with migration
+  // Load customer data with migration - UPDATED FOR MONGODB
   useEffect(() => {
     if (customerId) {
-      const loadedCustomer = storage.getCustomerById(customerId);
-      if (loadedCustomer) {
-        setCustomer(loadedCustomer);
+      loadCustomerData();
+    }
+  }, [customerId, navigate]);
+
+  const loadCustomerData = async () => {
+    try {
+      setLoading(true);
+      
+      // 1. Try to load customer from MongoDB first
+      console.log('Loading customer from MongoDB, ID:', customerId);
+      const customerResponse = await customerApi.getById(customerId!);
+      console.log('MongoDB customer response:', customerResponse);
+      
+      const mongoCustomer = customerResponse.data || customerResponse;
+      
+      if (mongoCustomer) {
+        // Map MongoDB customer to frontend format
+        const customerData: Customer = {
+          id: mongoCustomer._id || mongoCustomer.id,
+          aadhaarNumber: mongoCustomer.aadhaarNumber || '',
+          fullName: mongoCustomer.fullName || '',
+          gender: (mongoCustomer.gender as 'Male' | 'Female' | 'Other') || 'Male',
+          dateOfBirth: mongoCustomer.dateOfBirth || '',
+          address: mongoCustomer.address || '',
+          contactNumber: mongoCustomer.contactNumber || '',
+          email: mongoCustomer.email || '',
+          profileImage: mongoCustomer.profileImage || '',
+          createdAt: mongoCustomer.createdAt ? new Date(mongoCustomer.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          isActive: mongoCustomer.isActive !== undefined ? mongoCustomer.isActive : true,
+          projects: mongoCustomer.projects || []
+          // REMOVED: updatedAt: mongoCustomer.updatedAt || '' - This field doesn't exist in Customer type
+        };
         
-        // Load projects for this customer
-        const projects = storage.getCustomerProjects(customerId);
+        console.log('Mapped customer data:', customerData);
+        setCustomer(customerData);
+        
+        // 2. Load projects for this customer
+        let projects: Project[] = [];
+        
+        try {
+          // Try to load projects from MongoDB
+          const projectsResponse = await projectApi.getCustomerProjects(customerId!);
+          console.log('MongoDB projects response:', projectsResponse);
+          
+          if (projectsResponse.data && Array.isArray(projectsResponse.data)) {
+            projects = projectsResponse.data.map((proj: any) => ({
+              id: proj._id || proj.id,
+              customerId: proj.customerId || customerId!,
+              name: proj.name || 'Project',
+              location: proj.location || {
+                country: 'India',
+                state: 'Tamil Nadu',
+                city: 'Chennai',
+                village: 'Main Village'
+              },
+              numberOfBags: proj.numberOfBags || 0,
+              area: proj.area || { value: 0, unit: 'acres' },
+              status: proj.status || 'active',
+              createdAt: proj.createdAt || new Date().toISOString(),
+              updatedAt: proj.updatedAt || new Date().toISOString()
+            }));
+          } else if (Array.isArray(projectsResponse)) {
+            projects = projectsResponse.map((proj: any) => ({
+              id: proj._id || proj.id,
+              customerId: proj.customerId || customerId!,
+              name: proj.name || 'Project',
+              location: proj.location || {
+                country: 'India',
+                state: 'Tamil Nadu',
+                city: 'Chennai',
+                village: 'Main Village'
+              },
+              numberOfBags: proj.numberOfBags || 0,
+              area: proj.area || { value: 0, unit: 'acres' },
+              status: proj.status || 'active',
+              createdAt: proj.createdAt || new Date().toISOString(),
+              updatedAt: proj.updatedAt || new Date().toISOString()
+            }));
+          }
+        } catch (projectError) {
+          console.error('Failed to load projects from MongoDB:', projectError);
+          // Fallback to localStorage
+          projects = storage.getCustomerProjects(customerId!);
+        }
+        
+        console.log('Loaded projects:', projects);
         
         if (projects.length > 0) {
           setSelectedProjectId(projects[0].id);
           loadFinancialSummary(projects[0].id);
           
           // Migrate old transactions to use project system
-          storage.migrateOldTransactions(customerId, projects[0].id);
+          storage.migrateOldTransactions(customerId!, projects[0].id);
         } else {
           // Create a default project
           const defaultProject: Project = {
             id: Date.now().toString(),
-            customerId,
+            customerId: customerId!,
             name: 'Project 1',
             location: {
               country: 'India',
@@ -76,19 +157,83 @@ const AccountingPage: React.FC = () => {
             updatedAt: new Date().toISOString()
           };
           
-          storage.addProject(defaultProject);
-          setSelectedProjectId(defaultProject.id);
-          loadFinancialSummary(defaultProject.id);
+          // Try to save to MongoDB first
+          try {
+            const createdProject = await projectApi.create(defaultProject);
+            const newProjectId = createdProject.data?.id || createdProject.data?._id || defaultProject.id;
+            console.log('Created default project in MongoDB:', newProjectId);
+            
+            setSelectedProjectId(newProjectId);
+            loadFinancialSummary(newProjectId);
+          } catch (createError) {
+            console.error('Failed to create project in MongoDB:', createError);
+            // Fallback to localStorage
+            storage.addProject(defaultProject);
+            setSelectedProjectId(defaultProject.id);
+            loadFinancialSummary(defaultProject.id);
+          }
           
           // Migrate old transactions to use this project
-          storage.migrateOldTransactions(customerId, defaultProject.id);
+          storage.migrateOldTransactions(customerId!, defaultProject.id);
         }
-      } else {
-        navigate('/customers');
+        
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load customer from MongoDB:', error);
     }
-  }, [customerId, navigate]);
+    
+    // 3. Fallback to localStorage if MongoDB fails
+    console.log('Falling back to localStorage...');
+    const loadedCustomer = storage.getCustomerById(customerId!);
+    if (loadedCustomer) {
+      setCustomer(loadedCustomer);
+      
+      const projects = storage.getCustomerProjects(customerId!);
+      
+      if (projects.length > 0) {
+        setSelectedProjectId(projects[0].id);
+        loadFinancialSummary(projects[0].id);
+        
+        // Migrate old transactions to use project system
+        storage.migrateOldTransactions(customerId!, projects[0].id);
+      } else {
+        // Create a default project in localStorage
+        const defaultProject: Project = {
+          id: Date.now().toString(),
+          customerId: customerId!,
+          name: 'Project 1',
+          location: {
+            country: 'India',
+            state: 'Tamil Nadu',
+            city: 'Chennai',
+            village: 'Main Village'
+          },
+          numberOfBags: 0,
+          area: {
+            value: 0,
+            unit: 'acres'
+          },
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        storage.addProject(defaultProject);
+        setSelectedProjectId(defaultProject.id);
+        loadFinancialSummary(defaultProject.id);
+        
+        // Migrate old transactions to use this project
+        storage.migrateOldTransactions(customerId!, defaultProject.id);
+      }
+    } else {
+      console.log('Customer not found in localStorage either, navigating back');
+      navigate('/customers');
+    }
+    
+    setLoading(false);
+  };
 
   // Function to reload financial summary when transactions change
   const reloadFinancialSummary = () => {
@@ -101,6 +246,7 @@ const AccountingPage: React.FC = () => {
   // Load financial summary for a specific project
   const loadFinancialSummary = (projectId: string) => {
     if (customerId) {
+      // For now, use localStorage for transactions
       const summary = storage.getCustomerFinancialSummary(customerId, projectId);
       setCustomerSummary(summary);
     }
@@ -113,14 +259,28 @@ const AccountingPage: React.FC = () => {
   };
 
   // Toggle customer active/inactive status
-  const toggleCustomerStatus = () => {
+  const toggleCustomerStatus = async () => {
     if (customer) {
       const updatedCustomer = {
         ...customer,
         isActive: !customer.isActive
       };
-      storage.updateCustomer(updatedCustomer);
-      setCustomer(updatedCustomer);
+      
+      try {
+        // Update in MongoDB
+        await customerApi.update(customer.id, { isActive: updatedCustomer.isActive });
+        
+        // Update local state
+        setCustomer(updatedCustomer);
+        
+        // Also update localStorage as fallback
+        storage.updateCustomer(updatedCustomer);
+      } catch (error) {
+        console.error('Failed to update status in MongoDB:', error);
+        // Fallback to localStorage only
+        storage.updateCustomer(updatedCustomer);
+        setCustomer(updatedCustomer);
+      }
     }
   };
 
