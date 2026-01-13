@@ -1,4 +1,4 @@
-// src/components/CustomerCard.tsx
+// src/components/CustomerCard.tsx - UPDATED WITH DEBUG LOGS
 import React, { useState } from 'react';
 import { Customer } from '../types';
 import { 
@@ -10,13 +10,13 @@ import {
   Edit2,
   Save,
   X,
-  Trash2 // Add Trash2 icon
+  Trash2
 } from 'lucide-react';
 
 interface CustomerCardProps {
   customer: Customer;
   onEdit: (customer: Customer) => void;
-  onDelete: (customerId: string) => void; // Add delete callback
+  onDelete: (customerId: string) => void;
   onViewTransactions: (customerId: string) => void;
 }
 
@@ -39,9 +39,27 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
   };
 
   const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click when deleting
+    e.stopPropagation();
     if (window.confirm(`Are you sure you want to delete ${customer.fullName}? This will also delete all their projects and transactions!`)) {
       onDelete(customer.id);
+    }
+  };
+
+  const handleViewAccounting = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    console.log('🚀 CustomerCard: View Accounting clicked!');
+    console.log('📋 Customer ID:', customer.id);
+    console.log('👤 Customer Name:', customer.fullName);
+    console.log('🔗 Will navigate to:', `/accounting/${customer.id}`);
+    
+    // Check if onViewTransactions function exists
+    if (typeof onViewTransactions === 'function') {
+      console.log('✅ onViewTransactions is a function, calling it...');
+      onViewTransactions(customer.id);
+    } else {
+      console.error('❌ onViewTransactions is NOT a function!', onViewTransactions);
     }
   };
 
@@ -179,10 +197,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">
           <button
-            onClick={(e) => {
-              e.stopPropagation(); // THIS IS THE CRITICAL FIX!
-              onViewTransactions(customer.id);
-            }}
+            onClick={handleViewAccounting}
             className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
           >
             View Accounting
