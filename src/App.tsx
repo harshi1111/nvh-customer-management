@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import CustomersPage from './pages/CustomersPage';
 import { Home, Users, DollarSign, FileText, Settings, Menu, X } from 'lucide-react';
@@ -78,23 +78,39 @@ function App() {
   const auth = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth < 768) { // 768px is Tailwind's md breakpoint
+      setSidebarOpen(false);
+    }
+  }, [location]);
+
+  // Close sidebar when clicking on overlay
+  const closeSidebar = () => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile menu button */}
+      {/* Mobile menu button - FIXED POSITIONING */}
       <button
         className="md:hidden fixed top-4 left-4 z-50 p-3 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors"
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        style={{ zIndex: 9999 }}
+        style={{ zIndex: 9999, marginTop: '16px' }}
+        aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
       >
         {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      {/* Sidebar - MAKE RESPONSIVE */}
+      {/* Sidebar - MOBILE RESPONSIVE */}
       <div className={`
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 fixed md:relative
-        w-64 bg-white border-r border-gray-200 min-h-screen p-6 flex flex-col
-        transition-transform duration-300 z-40 
+        w-full md:w-64 bg-white border-r border-gray-200 min-h-screen p-6 flex flex-col
+        transition-transform duration-300 ease-in-out z-40
+        overflow-y-auto
       `}>
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-green-800 flex items-center gap-2">
@@ -109,8 +125,8 @@ function App() {
         <nav className="space-y-2">
           <Link 
             to="/" 
-            onClick={() => setSidebarOpen(false)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
               location.pathname === '/'
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
@@ -122,8 +138,8 @@ function App() {
           
           <Link 
             to="/customers" 
-            onClick={() => setSidebarOpen(false)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
               location.pathname === '/customers' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
@@ -135,8 +151,8 @@ function App() {
           
           <Link 
             to="/accounting" 
-            onClick={() => setSidebarOpen(false)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
               location.pathname === '/accounting' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
@@ -148,8 +164,8 @@ function App() {
           
           <Link 
             to="/reports" 
-            onClick={() => setSidebarOpen(false)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
               location.pathname === '/reports'
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
@@ -162,8 +178,8 @@ function App() {
           <div className="pt-6 mt-6 border-t border-gray-200">
             <Link 
               to="/settings" 
-              onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              onClick={closeSidebar}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
                 location.pathname === '/settings'
                   ? 'bg-green-50 text-green-700 font-medium'
                   : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
@@ -188,7 +204,7 @@ function App() {
               onClick={() => {
                 auth.logout();
               }}
-              className="text-xs text-red-600 hover:text-red-800 font-medium"
+              className="text-xs text-red-600 hover:text-red-800 font-medium min-h-[44px] min-w-[44px] flex items-center"
             >
               Logout
             </button>
@@ -200,12 +216,12 @@ function App() {
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
-      {/* Main Content - ADD margin for mobile button */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - ADDED mobile padding top */}
+      <div className="flex-1 flex flex-col md:pt-0 pt-16">
         {/* Top Bar - Now dynamic */}
         <TopBar />
 
