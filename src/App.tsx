@@ -18,8 +18,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-12 h-12 border-3 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -32,47 +32,47 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Component for dynamic top bar title
+// Component for dynamic top bar title - MOBILE OPTIMIZED
 const TopBar = () => {
   const location = useLocation();
   
   const getPageTitle = () => {
     if (location.pathname === '/') return 'Dashboard';
-    if (location.pathname === '/customers') return 'Customer Management';
-    if (location.pathname.startsWith('/accounting/')) return 'Customer Accounting';
-    if (location.pathname === '/accounting') return 'Accounting Dashboard';
-    if (location.pathname === '/reports') return 'Reports & Analytics';
-    if (location.pathname === '/settings') return 'System Settings';
-    return 'NVH Agri Green';
+    if (location.pathname === '/customers') return 'Customers';
+    if (location.pathname.startsWith('/accounting/')) return 'Accounting';
+    if (location.pathname === '/accounting') return 'Accounting';
+    if (location.pathname === '/reports') return 'Reports';
+    if (location.pathname === '/settings') return 'Settings';
+    return 'NVH Agri';
   };
 
   const getPageDescription = () => {
-    if (location.pathname === '/') return 'Welcome to your dashboard';
-    if (location.pathname === '/customers') return 'Manage your vetiver farming customers';
-    if (location.pathname.startsWith('/accounting/')) return 'Track customer expenses and investments';
-    if (location.pathname === '/accounting') return 'Financial management system';
-    if (location.pathname === '/reports') return 'View analytics and insights';
-    if (location.pathname === '/settings') return 'Configure system preferences';
-    return 'Vetiver Farming System';
+    if (location.pathname === '/') return 'Welcome';
+    if (location.pathname === '/customers') return 'Manage customers';
+    if (location.pathname.startsWith('/accounting/')) return 'Track expenses';
+    if (location.pathname === '/accounting') return 'Financial management';
+    if (location.pathname === '/reports') return 'View analytics';
+    if (location.pathname === '/settings') return 'System preferences';
+    return 'Vetiver Farming';
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 mt-16 md:mt-0">
+    <header className="bg-white border-b border-gray-200 px-3 md:px-6 py-3 mt-14 md:mt-0">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">{getPageTitle()}</h2>
-          <p className="text-sm text-gray-500">{getPageDescription()}</p>
+          <h2 className="text-lg font-semibold text-gray-800 md:text-xl">{getPageTitle()}</h2>
+          <p className="text-xs text-gray-500 md:text-sm">{getPageDescription()}</p>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Removed "New Transaction" button */}
-          <div className="w-10 h-10 bg-gray-100 rounded-full hidden md:block"></div>
+        <div className="flex items-center gap-3">
+          {/* Removed empty div for mobile */}
+          <div className="w-8 h-8 bg-gray-100 rounded-full hidden md:block"></div>
         </div>
       </div>
     </header>
   );
 };
 
-// Main App component
+// Main App component - MOBILE FIRST DESIGN
 function App() {
   const location = useLocation();
   const auth = useAuth();
@@ -80,12 +80,12 @@ function App() {
 
   // Auto-close sidebar on mobile when route changes
   useEffect(() => {
-    if (window.innerWidth < 768) { // 768px is Tailwind's md breakpoint
+    if (window.innerWidth < 768) {
       setSidebarOpen(false);
     }
   }, [location]);
 
-  // Close sidebar when clicking on overlay
+  // Close sidebar
   const closeSidebar = () => {
     if (window.innerWidth < 768) {
       setSidebarOpen(false);
@@ -94,117 +94,120 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile menu button - FIXED POSITIONING */}
+      {/* Mobile menu button - COMPACT SIZE */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-3 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors"
+        className="md:hidden fixed top-3 left-3 z-50 p-2.5 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors"
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        style={{ zIndex: 9999, marginTop: '16px' }}
+        style={{ zIndex: 9999 }}
         aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
       >
-        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
-      {/* Sidebar - MOBILE RESPONSIVE */}
+      {/* Sidebar - COMPACT MOBILE DESIGN */}
       <div className={`
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 fixed md:relative
-        w-full md:w-64 bg-white border-r border-gray-200 min-h-screen p-6 flex flex-col
-        transition-transform duration-300 ease-in-out z-40
+        w-64 md:w-56 bg-white border-r border-gray-200 min-h-screen p-4 md:p-5 flex flex-col
+        transition-transform duration-200 ease-in-out z-40
         overflow-y-auto
       `}>
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-green-800 flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">NVH</span>
+        {/* Logo - Smaller on mobile */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-green-600 rounded flex items-center justify-center">
+              <span className="text-white font-bold text-sm">NVH</span>
             </div>
-            Agri Green
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Vetiver Farming System</p>
+            <h1 className="text-lg font-bold text-green-800">Agri Green</h1>
+          </div>
+          <p className="text-xs text-gray-500 mt-1 hidden md:block">Vetiver Farming System</p>
         </div>
 
-        <nav className="space-y-2">
+        {/* Navigation - Compact */}
+        <nav className="space-y-1 flex-1">
           <Link 
             to="/" 
             onClick={closeSidebar}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
               location.pathname === '/'
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <Home className="w-5 h-5" />
-            Dashboard
+            <Home className="w-4 h-4 flex-shrink-0" />
+            <span>Dashboard</span>
           </Link>
           
           <Link 
             to="/customers" 
             onClick={closeSidebar}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
               location.pathname === '/customers' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <Users className="w-5 h-5" />
-            Customers
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span>Customers</span>
           </Link>
           
           <Link 
             to="/accounting" 
             onClick={closeSidebar}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
               location.pathname === '/accounting' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <DollarSign className="w-5 h-5" />
-            Accounting
+            <DollarSign className="w-4 h-4 flex-shrink-0" />
+            <span>Accounting</span>
           </Link>
           
           <Link 
             to="/reports" 
             onClick={closeSidebar}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
               location.pathname === '/reports'
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <FileText className="w-5 h-5" />
-            Reports
+            <FileText className="w-4 h-4 flex-shrink-0" />
+            <span>Reports</span>
           </Link>
           
-          <div className="pt-6 mt-6 border-t border-gray-200">
+          <div className="pt-4 mt-4 border-t border-gray-200">
             <Link 
               to="/settings" 
               onClick={closeSidebar}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px] ${
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
                 location.pathname === '/settings'
                   ? 'bg-green-50 text-green-700 font-medium'
                   : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
-            }`}
+              }`}
             >
-              <Settings className="w-5 h-5" />
-              Settings
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              <span>Settings</span>
             </Link>
           </div>
         </nav>
 
-        {/* User Profile with Logout */}
-        <div className="mt-auto pt-6">
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <span className="font-semibold text-green-800">AD</span>
+        {/* User Profile - Compact */}
+        <div className="mt-auto pt-4 border-t border-gray-200">
+          <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="font-semibold text-green-800 text-sm">AD</span>
             </div>
-            <div className="flex-1">
-              <p className="font-medium text-gray-800">Admin</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-800 text-sm truncate">Admin</p>
             </div>
             <button
               onClick={() => {
                 auth.logout();
+                closeSidebar();
               }}
-              className="text-xs text-red-600 hover:text-red-800 font-medium min-h-[44px] min-w-[44px] flex items-center"
+              className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1"
             >
               Logout
             </button>
@@ -220,21 +223,21 @@ function App() {
         />
       )}
 
-      {/* Main Content - ADDED mobile padding top */}
-      <div className="flex-1 flex flex-col md:pt-0 pt-16">
-        {/* Top Bar - Now dynamic */}
+      {/* Main Content - Proper mobile spacing */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar */}
         <TopBar />
 
-        {/* Page Content */}
-        <main className="flex-1 p-4 md:p-8">
+        {/* Page Content - Better mobile padding */}
+        <main className="flex-1 p-3 md:p-6">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             
             <Route path="/" element={
               <ProtectedRoute>
-                <div className="text-center py-12">
-                  <h1 className="text-3xl font-bold text-gray-800 mb-4">Welcome to NVH Agri Green</h1>
-                  <p className="text-gray-600">Select a section from the sidebar to begin</p>
+                <div className="text-center py-8 md:py-12">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3 md:mb-4">Welcome to NVH Agri Green</h1>
+                  <p className="text-gray-600 text-sm md:text-base">Select a section from the sidebar</p>
                 </div>
               </ProtectedRoute>
             } />
@@ -245,7 +248,6 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* FIXED: This route MUST come before /accounting */}
             <Route path="/accounting/:customerId" element={
               <ProtectedRoute>
                 <AccountingPage />
@@ -266,8 +268,8 @@ function App() {
             
             <Route path="/settings" element={
               <ProtectedRoute>
-                <div className="p-4 md:p-8">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">System Settings</h2>
+                <div className="p-3 md:p-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">System Settings</h2>
                   <ChangePassword />
                 </div>
               </ProtectedRoute>

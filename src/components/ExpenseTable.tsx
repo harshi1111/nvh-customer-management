@@ -595,7 +595,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       {transactions.length > 0 ? (
         <>
           <div className="overflow-x-auto rounded-lg border border-gray-200 mb-6">
-            <table className="w-full">
+            <table className="w-full min-w-[800px] md:min-w-0"> 
               <thead className="bg-gray-50">
                 <tr>
                   <th className="p-4 text-left text-sm font-semibold text-gray-700">S.No</th>
