@@ -1,126 +1,243 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Mobile-first responsive fixes */
+/* src/App.css - COMPLETE MOBILE FIX */
+/* Reset and Base Styles */
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* Fix for iOS Safari 100vh issue */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Fix iOS 100vh issue */
 @supports (-webkit-touch-callout: none) {
   .min-h-screen {
     min-height: -webkit-fill-available;
   }
 }
 
-/* Prevent text size adjustment */
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-/* Smooth scrolling */
-html, body {
-  overflow-x: hidden;
-  scroll-behavior: smooth;
-}
-
-/* Better tap highlights */
-a, button {
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  tap-highlight-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Better focus states for accessibility */
-:focus {
-  outline: 2px solid #059669;
-  outline-offset: 2px;
-}
-
-:focus:not(:focus-visible) {
-  outline: none;
-}
-
-/* Mobile-specific improvements */
-@media (max-width: 768px) {
-  /* Smaller font sizes for mobile */
-  body {
+/* Mobile-First Responsive Design */
+@media (max-width: 640px) {
+  /* Base font size for mobile */
+  html {
     font-size: 14px;
   }
-  
-  /* Prevent horizontal overflow */
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
+
+  /* Prevent text overflow */
+  * {
+    max-width: 100%;
   }
-  
-  /* Better table responsiveness */
-  table {
+
+  /* Fix all form elements */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS zoom */
+    padding: 12px 14px !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Fix all buttons */
+  button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 10px 16px !important;
+    font-size: 15px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Fix all search inputs */
+  .search-container {
+    position: relative;
+    width: 100%;
+  }
+
+  .search-container input {
+    padding-left: 40px !important;
+    padding-right: 12px !important;
+  }
+
+  .search-container .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    pointer-events: none;
+    color: #9ca3af;
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Fix tables for mobile */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    width: calc(100% + 2rem);
+  }
+
+  .table-container table {
+    min-width: 600px;
     font-size: 13px;
   }
-  
-  /* Compact form elements */
-  input, select, textarea {
-    font-size: 16px !important; /* Prevents iOS zoom */
-    padding: 10px 12px !important;
+
+  .table-container td,
+  .table-container th {
+    padding: 10px 8px !important;
+    white-space: nowrap;
   }
-  
-  /* Smaller buttons */
-  .btn-sm-mobile {
-    padding: 8px 12px !important;
-    font-size: 13px !important;
+
+  /* Fix grid layouts */
+  .grid-cols-1-mobile {
+    grid-template-columns: 1fr !important;
   }
-  
-  /* Better touch scrolling */
-  * {
-    -webkit-overflow-scrolling: touch;
+
+  .grid-cols-2-mobile {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
   }
-  
-  /* Improve tap targets */
-  button, a, [role="button"] {
-    cursor: pointer;
+
+  /* Fix flex layouts */
+  .flex-mobile-col {
+    flex-direction: column !important;
+  }
+
+  .flex-mobile-wrap {
+    flex-wrap: wrap !important;
+  }
+
+  /* Fix spacing */
+  .p-mobile-safe {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .mx-mobile-auto {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* Fix modals and overlays */
+  .modal-container {
+    padding: 1rem !important;
+  }
+
+  .modal-content {
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Fix project form inputs */
+  .project-form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .project-form-grid .col-span-2 {
+    grid-column: 1;
+  }
+
+  /* Fix area input groups */
+  .area-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .area-input-group > div {
+    width: 100%;
+  }
+
+  /* Fix location inputs */
+  .location-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Better touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Hide non-essential elements on mobile */
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  /* Show mobile-only elements */
+  .mobile-only {
+    display: block !important;
   }
 }
 
-/* Desktop improvements */
-@media (min-width: 769px) {
-  /* Restore normal sizes */
-  body {
-    font-size: 16px;
+/* Tablet Styles */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .tablet-w-full {
+    width: 100% !important;
+  }
+}
+
+/* Desktop Styles */
+@media (min-width: 1025px) {
+  /* Restore desktop layouts */
+  .desktop-grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* Utility Classes */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
   }
 }

@@ -1,3 +1,4 @@
+// src/App.tsx - MOBILE PERFECT VERSION
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import CustomersPage from './pages/CustomersPage';
@@ -16,9 +17,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-12 h-12 border-3 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-10 h-10 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-sm text-gray-600">Loading...</p>
         </div>
       </div>
@@ -32,7 +33,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Component for dynamic top bar title - MOBILE OPTIMIZED
+// Component for dynamic top bar title
 const TopBar = () => {
   const location = useLocation();
   
@@ -46,33 +47,18 @@ const TopBar = () => {
     return 'NVH Agri';
   };
 
-  const getPageDescription = () => {
-    if (location.pathname === '/') return 'Welcome';
-    if (location.pathname === '/customers') return 'Manage customers';
-    if (location.pathname.startsWith('/accounting/')) return 'Track expenses';
-    if (location.pathname === '/accounting') return 'Financial management';
-    if (location.pathname === '/reports') return 'View analytics';
-    if (location.pathname === '/settings') return 'System preferences';
-    return 'Vetiver Farming';
-  };
-
   return (
-    <header className="bg-white border-b border-gray-200 px-3 md:px-6 py-3 mt-14 md:mt-0">
+    <header className="bg-white border-b border-gray-200 px-4 py-3 mt-12 md:mt-0">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 md:text-xl">{getPageTitle()}</h2>
-          <p className="text-xs text-gray-500 md:text-sm">{getPageDescription()}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Removed empty div for mobile */}
-          <div className="w-8 h-8 bg-gray-100 rounded-full hidden md:block"></div>
+          <h2 className="text-base font-semibold text-gray-800 md:text-xl">{getPageTitle()}</h2>
         </div>
       </div>
     </header>
   );
 };
 
-// Main App component - MOBILE FIRST DESIGN
+// Main App component
 function App() {
   const location = useLocation();
   const auth = useAuth();
@@ -85,7 +71,6 @@ function App() {
     }
   }, [location]);
 
-  // Close sidebar
   const closeSidebar = () => {
     if (window.innerWidth < 768) {
       setSidebarOpen(false);
@@ -94,9 +79,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile menu button - COMPACT SIZE */}
+      {/* Mobile menu button */}
       <button
-        className="md:hidden fixed top-3 left-3 z-50 p-2.5 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors"
+        className="md:hidden fixed top-3 left-3 z-50 p-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700"
         onClick={() => setSidebarOpen(!sidebarOpen)}
         style={{ zIndex: 9999 }}
         aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
@@ -104,76 +89,73 @@ function App() {
         {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
-      {/* Sidebar - COMPACT MOBILE DESIGN */}
+      {/* Sidebar */}
       <div className={`
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 fixed md:relative
-        w-64 md:w-56 bg-white border-r border-gray-200 min-h-screen p-4 md:p-5 flex flex-col
-        transition-transform duration-200 ease-in-out z-40
-        overflow-y-auto
+        w-64 bg-white border-r border-gray-200 min-h-screen p-4 flex flex-col
+        transition-transform duration-200 z-40
       `}>
-        {/* Logo - Smaller on mobile */}
         <div className="mb-6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-green-600 rounded flex items-center justify-center">
+            <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
               <span className="text-white font-bold text-sm">NVH</span>
             </div>
             <h1 className="text-lg font-bold text-green-800">Agri Green</h1>
           </div>
-          <p className="text-xs text-gray-500 mt-1 hidden md:block">Vetiver Farming System</p>
+          <p className="text-xs text-gray-500 mt-1 hidden md:block">Vetiver Farming</p>
         </div>
 
-        {/* Navigation - Compact */}
         <nav className="space-y-1 flex-1">
           <Link 
             to="/" 
             onClick={closeSidebar}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
               location.pathname === '/'
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <Home className="w-4 h-4 flex-shrink-0" />
+            <Home className="w-4 h-4" />
             <span>Dashboard</span>
           </Link>
           
           <Link 
             to="/customers" 
             onClick={closeSidebar}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
               location.pathname === '/customers' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <Users className="w-4 h-4 flex-shrink-0" />
+            <Users className="w-4 h-4" />
             <span>Customers</span>
           </Link>
           
           <Link 
             to="/accounting" 
             onClick={closeSidebar}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
               location.pathname === '/accounting' || location.pathname.startsWith('/accounting/')
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <DollarSign className="w-4 h-4 flex-shrink-0" />
+            <DollarSign className="w-4 h-4" />
             <span>Accounting</span>
           </Link>
           
           <Link 
             to="/reports" 
             onClick={closeSidebar}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
               location.pathname === '/reports'
                 ? 'bg-green-50 text-green-700 font-medium'
                 : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            <FileText className="w-4 h-4 flex-shrink-0" />
+            <FileText className="w-4 h-4" />
             <span>Reports</span>
           </Link>
           
@@ -181,33 +163,32 @@ function App() {
             <Link 
               to="/settings" 
               onClick={closeSidebar}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
                 location.pathname === '/settings'
                   ? 'bg-green-50 text-green-700 font-medium'
                   : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
               }`}
             >
-              <Settings className="w-4 h-4 flex-shrink-0" />
+              <Settings className="w-4 h-4" />
               <span>Settings</span>
             </Link>
           </div>
         </nav>
 
-        {/* User Profile - Compact */}
         <div className="mt-auto pt-4 border-t border-gray-200">
-          <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <div className="flex items-center gap-2 p-2">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
               <span className="font-semibold text-green-800 text-sm">AD</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-800 text-sm truncate">Admin</p>
+            <div className="flex-1">
+              <p className="font-medium text-gray-800 text-sm">Admin</p>
             </div>
             <button
               onClick={() => {
                 auth.logout();
                 closeSidebar();
               }}
-              className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1"
+              className="text-xs text-red-600 hover:text-red-800 px-2 py-1"
             >
               Logout
             </button>
@@ -223,21 +204,18 @@ function App() {
         />
       )}
 
-      {/* Main Content - Proper mobile spacing */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar */}
         <TopBar />
-
-        {/* Page Content - Better mobile padding */}
         <main className="flex-1 p-3 md:p-6">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             
             <Route path="/" element={
               <ProtectedRoute>
-                <div className="text-center py-8 md:py-12">
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3 md:mb-4">Welcome to NVH Agri Green</h1>
-                  <p className="text-gray-600 text-sm md:text-base">Select a section from the sidebar</p>
+                <div className="text-center py-8">
+                  <h1 className="text-xl font-bold text-gray-800 mb-3">Welcome</h1>
+                  <p className="text-gray-600">Select a section from the sidebar</p>
                 </div>
               </ProtectedRoute>
             } />
@@ -268,8 +246,8 @@ function App() {
             
             <Route path="/settings" element={
               <ProtectedRoute>
-                <div className="p-3 md:p-6">
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">System Settings</h2>
+                <div className="p-3">
+                  <h2 className="text-lg font-bold text-gray-800 mb-4">Settings</h2>
                   <ChangePassword />
                 </div>
               </ProtectedRoute>
@@ -281,7 +259,6 @@ function App() {
   );
 }
 
-// Wrap App with Router and AuthProvider
 function AppWrapper() {
   return (
     <Router>
