@@ -1,6 +1,5 @@
 // src/utils/api.ts
-const API_BASE_URL = 'https://nvh-customer-management-s3yn-6lydf17n4-harshi1111s-projects.vercel.app/api';
-
+const API_BASE_URL = 'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app/api';
 // Generic API request helper
 async function apiRequest<T>(
   endpoint: string,
