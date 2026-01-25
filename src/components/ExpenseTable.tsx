@@ -441,9 +441,15 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     
     try {
       // Save all transactions to MongoDB
+      let newTransactionsCount = 0;
       for (const transaction of transactions) {
-        if (!transaction.id.startsWith('temp-')) {
-          await saveTransactionToMongoDB(transaction);
+        if (transaction.id.startsWith('temp-')) {
+          try {
+            const savedTransaction = await saveTransactionToMongoDB(transaction);
+            newTransactionsCount++;
+          } catch (error) {
+             console.error('Failed to save new transaction:', error);
+          }
         }
       }
       
