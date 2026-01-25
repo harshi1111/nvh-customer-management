@@ -1,8 +1,8 @@
-// components/ExpenseTable.tsx - UPDATED WITH MONGODB SUPPORT
+// components/ExpenseTable.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { ExpenseType, expenseConfig, Transaction } from '../types';
 import { storage } from '../utils/storage';
-import { transactionApi } from '../utils/api'; // ADD THIS IMPORT
+import { transactionApi } from '../utils/api';
 import { 
   Plus, 
   Trash2, 
@@ -49,27 +49,23 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Also, we need to make sure when loading, we always use the highest serial number in the database, not just index. Update loadTransactions():
+  // FIXED: Proper transaction loading with MongoDB fallback
   const loadTransactions = async () => {
     setLoading(true);
     try {
+      // Try to load from MongoDB first
       const response = await transactionApi.getCustomerTransactions(customerId, projectId);
       console.log('MongoDB transactions response:', response);
       
       let mongoTransactions: Transaction[] = [];
       
       if (response && response.data && Array.isArray(response.data)) {
-        // First, sort by serial number to maintain order
-        const sortedData = response.data.sort((a: any, b: any) => 
-          (a.serialNumber || 0) - (b.serialNumber || 0)
-        );
-        
-        // Then map with correct serials
-        mongoTransactions = sortedData.map((t: any) => ({
+        // Map MongoDB documents to Transaction objects
+        mongoTransactions = response.data.map((t: any, index: number) => ({
           id: t._id || t.id,
           customerId: t.customerId || customerId,
           projectId: t.projectId || projectId,
-          serialNumber: t.serialNumber || 1, // Use stored serial number
+          serialNumber: t.serialNumber || index + 1,
           expenseType: t.expenseType || 'LABOUR_CHARGES',
           quantity: t.quantity || undefined,
           debitAmount: t.debitAmount || 0,
@@ -78,15 +74,22 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
           transactionDate: t.transactionDate || t.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
           createdAt: t.createdAt || new Date().toISOString()
         }));
-      }
-      
-      if (mongoTransactions.length > 0) {
-        // Ensure serials are sequential (fix any gaps)
+        
+        // Sort by serial number then by creation date
+        mongoTransactions.sort((a, b) => {
+          if (a.serialNumber !== b.serialNumber) {
+            return a.serialNumber - b.serialNumber;
+          }
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+        
+        // Fix serial numbers to be sequential
         const fixedTransactions = mongoTransactions.map((t, index) => ({
           ...t,
           serialNumber: index + 1
         }));
         
+        // Save to LocalStorage as backup
         storage.saveTransactions(fixedTransactions);
         setTransactions(fixedTransactions);
         setLoading(false);
@@ -109,7 +112,8 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       setTransactions(normalizedTransactions);
       
     } catch (error) {
-      console.error('Error loading transactions:', error);
+      console.error('Error loading transactions from MongoDB:', error);
+      // Fallback to LocalStorage only
       const loadedTransactions = storage.getCustomerTransactions(customerId, projectId);
       const sortedTransactions = loadedTransactions.sort((a, b) => a.serialNumber - b.serialNumber);
       const normalizedTransactions = sortedTransactions.map((t, index) => ({
@@ -122,61 +126,23 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     }
   };
 
-  // Save transaction to MongoDB AND LocalStorage
-  const saveTransactionToMongoDB = async (transaction: Transaction) => {
-    try {
-      const transactionData = {
-        customerId: transaction.customerId,
-        projectId: transaction.projectId,
-        serialNumber: transaction.serialNumber,
-        expenseType: transaction.expenseType,
-        quantity: transaction.quantity,
-        debitAmount: transaction.debitAmount,
-        creditAmount: transaction.creditAmount,
-        description: transaction.description,
-        transactionDate: transaction.transactionDate,
-        createdAt: transaction.createdAt
-      };
-      
-      let response;
-      
-      if (transaction.id && !transaction.id.startsWith('temp-')) {
-        // Update existing transaction
-        response = await transactionApi.update(transaction.id, transactionData);
-      } else {
-        // Create new transaction
-        response = await transactionApi.create(transactionData);
-      }
-      
-      return response.data || response;
-    } catch (error) {
-      console.error('Failed to save transaction to MongoDB:', error);
-      throw error;
-    }
-  };
-
-  // Fix the createNewTransaction() function:
+  // FIXED: createNewTransaction function
   const createNewTransaction = (): Transaction => {
-    // FIX: Calculate from CURRENT transactions in state, not LocalStorage
+    // Calculate next serial number from CURRENT transactions
     let nextSerial = 1;
     
     if (transactions.length > 0) {
       // Get max serial number from CURRENT transactions in state
       const maxSerial = Math.max(...transactions.map(t => t.serialNumber));
       nextSerial = maxSerial + 1;
-    } else {
-      // Only check LocalStorage if state is empty
-      const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
-      if (storedTransactions.length > 0) {
-        const maxSerial = Math.max(...storedTransactions.map(t => t.serialNumber));
-        nextSerial = maxSerial + 1;
-      }
     }
     
-    console.log('Creating new transaction. Current max serial:', nextSerial - 1, 'Next serial:', nextSerial);
+    const uniqueId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log('Creating new transaction. ID:', uniqueId, 'Serial:', nextSerial, 'Total transactions:', transactions.length);
     
     return {
-      id: `temp-${Date.now()}`,
+      id: uniqueId, 
       customerId,
       projectId,
       serialNumber: nextSerial,
@@ -214,7 +180,40 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   const totals = calculateTotals();
 
-  // Also update the handleAddTransaction to log debugging:
+  // Save transaction to MongoDB AND LocalStorage
+  const saveTransactionToMongoDB = async (transaction: Transaction) => {
+    try {
+      const transactionData = {
+        customerId: transaction.customerId,
+        projectId: transaction.projectId,
+        serialNumber: transaction.serialNumber,
+        expenseType: transaction.expenseType,
+        quantity: transaction.quantity,
+        debitAmount: transaction.debitAmount,
+        creditAmount: transaction.creditAmount,
+        description: transaction.description,
+        transactionDate: transaction.transactionDate,
+        createdAt: transaction.createdAt
+      };
+      
+      let response;
+      
+      if (transaction.id && !transaction.id.startsWith('temp-')) {
+        // Update existing transaction
+        response = await transactionApi.update(transaction.id, transactionData);
+      } else {
+        // Create new transaction
+        response = await transactionApi.create(transactionData);
+      }
+      
+      return response.data || response;
+    } catch (error) {
+      console.error('Failed to save transaction to MongoDB:', error);
+      throw error;
+    }
+  };
+
+  // FIXED: handleAddTransaction function
   const handleAddTransaction = () => {
     console.log('Adding new transaction. Current transactions count:', transactions.length);
     console.log('Current serial numbers:', transactions.map(t => t.serialNumber));
@@ -223,10 +222,13 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     
     console.log('New transaction serial:', newTransaction.serialNumber);
     
-    setTransactions([...transactions, newTransaction]);
+    // Add to the end of transactions array
+    const updatedTransactions = [...transactions, newTransaction];
+    setTransactions(updatedTransactions);
     setEditingId(newTransaction.id);
     setIsAdding(true);
     
+    // Scroll to the new transaction
     setTimeout(() => {
       const element = document.getElementById(`transaction-${newTransaction.id}`);
       element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -283,10 +285,15 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     
     try {
       const transaction = transactions.find(t => t.id === id);
-      if (!transaction) return;
+      if (!transaction) {
+        setSaveStatus('error');
+        showNotification('error', 'Transaction not found');
+        return;
+      }
       
       const config = expenseConfig[transaction.expenseType];
       
+      // Validation
       if (config.isCreditOnly && transaction.debitAmount > 0) {
         showNotification('error', 'Investment can only have credit amount!');
         setSaveStatus('error');
@@ -313,31 +320,25 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       }
       
       // Save to LocalStorage as backup
-      const existingInStorage = storage.getCustomerTransactions(customerId, projectId)
-        .some(t => t.id === id);
+      const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      const existingIndex = storedTransactions.findIndex(t => t.id === id);
       
-      if (existingInStorage) {
-        storage.updateTransaction(updatedTransaction);
+      if (existingIndex !== -1) {
+        // Update existing
+        const updatedStorage = [...storedTransactions];
+        updatedStorage[existingIndex] = updatedTransaction;
+        storage.saveTransactions(updatedStorage);
       } else {
-        const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
-        let nextSerial = 1;
-        
-        if (storedTransactions.length > 0) {
-          const maxSerial = Math.max(...storedTransactions.map(t => t.serialNumber));
-          nextSerial = maxSerial + 1;
-        }
-        
-        const transactionToSave = {
-          ...updatedTransaction,
-          serialNumber: nextSerial
-        };
-        storage.addTransaction(transactionToSave);
+        // Add new
+        const newStorage = [...storedTransactions, updatedTransaction];
+        storage.saveTransactions(newStorage);
       }
       
       // Update state
-      setTransactions(transactions.map(t => 
+      const updatedTransactions = transactions.map(t => 
         t.id === id ? updatedTransaction : t
-      ));
+      );
+      setTransactions(updatedTransactions);
       
       setEditingId('');
       setIsAdding(false);
@@ -356,13 +357,16 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       // Fallback: Save to LocalStorage only
       const transaction = transactions.find(t => t.id === id);
       if (transaction) {
-        const existingInStorage = storage.getCustomerTransactions(customerId, projectId)
-          .some(t => t.id === id);
+        const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
+        const existingIndex = storedTransactions.findIndex(t => t.id === id);
         
-        if (existingInStorage) {
-          storage.updateTransaction(transaction);
+        if (existingIndex !== -1) {
+          const updatedStorage = [...storedTransactions];
+          updatedStorage[existingIndex] = transaction;
+          storage.saveTransactions(updatedStorage);
         } else {
-          storage.addTransaction(transaction);
+          const newStorage = [...storedTransactions, transaction];
+          storage.saveTransactions(newStorage);
         }
         
         showNotification('success', 'Transaction saved locally only.');
@@ -393,31 +397,21 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       }
       
       // Delete from LocalStorage
-      const existingInStorage = storage.getCustomerTransactions(customerId, projectId)
-        .some(t => t.id === id);
+      const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      const filteredStorage = storedTransactions.filter(t => t.id !== id);
+      storage.saveTransactions(filteredStorage);
       
-      if (existingInStorage) {
-        storage.deleteTransaction(id);
-      }
-      
-      // Remove from state
-      const updatedTransactions = transactions.filter(t => t.id !== id);
-      
-      // Recalculate serial numbers
-      const renumberedTransactions = updatedTransactions.map((t, index) => ({
+      // Remove from state and renumber serials
+      const filteredTransactions = transactions.filter(t => t.id !== id);
+      const renumberedTransactions = filteredTransactions.map((t, index) => ({
         ...t,
         serialNumber: index + 1
       }));
       
-      // Update state
       setTransactions(renumberedTransactions);
       
       // Update LocalStorage with new serials
-      renumberedTransactions.forEach(t => {
-        if (!t.id.startsWith('temp-')) {
-          storage.updateTransaction(t);
-        }
-      });
+      storage.saveTransactions(renumberedTransactions);
       
       showNotification('success', 'Transaction deleted successfully!');
       
@@ -441,37 +435,31 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
     
     try {
       // Save all transactions to MongoDB
-      let newTransactionsCount = 0;
+      let savedCount = 0;
+      const errors: string[] = [];
+      
       for (const transaction of transactions) {
-        if (transaction.id.startsWith('temp-')) {
-          try {
-            const savedTransaction = await saveTransactionToMongoDB(transaction);
-            newTransactionsCount++;
-          } catch (error) {
-             console.error('Failed to save new transaction:', error);
-          }
+        try {
+          await saveTransactionToMongoDB(transaction);
+          savedCount++;
+        } catch (error) {
+          console.error(`Failed to save transaction ${transaction.serialNumber}:`, error);
+          errors.push(`Transaction ${transaction.serialNumber}`);
         }
       }
       
       // Save all to LocalStorage
-      const storedTransactions = storage.getCustomerTransactions(customerId, projectId);
+      storage.saveTransactions(transactions);
       
-      transactions.forEach((transaction, index) => {
-        if (transaction.id.startsWith('temp-')) {
-          const transactionToSave = {
-            ...transaction,
-            serialNumber: index + 1
-          };
-          storage.addTransaction(transactionToSave);
-        } else {
-          storage.updateTransaction(transaction);
-        }
-      });
+      if (errors.length === 0) {
+        setSaveStatus('saved');
+        showNotification('success', `${savedCount} transactions saved successfully to database!`);
+      } else {
+        setSaveStatus('error');
+        showNotification('error', `Saved ${savedCount} transactions. Failed: ${errors.join(', ')}`);
+      }
       
-      setSaveStatus('saved');
-      showNotification('success', 'All transactions saved successfully to database!');
-      
-      // Reload transactions
+      // Reload transactions to get updated IDs
       loadTransactions();
       
       if (onTransactionsChange) {
@@ -484,17 +472,7 @@ const ExpenseTable: React.FC<ExpenseTableProps> = ({
       showNotification('error', 'Failed to save all transactions to database. Saved locally only.');
       
       // Fallback: Save to LocalStorage only
-      transactions.forEach((transaction, index) => {
-        if (transaction.id.startsWith('temp-')) {
-          const transactionToSave = {
-            ...transaction,
-            serialNumber: index + 1
-          };
-          storage.addTransaction(transactionToSave);
-        } else {
-          storage.updateTransaction(transaction);
-        }
-      });
+      storage.saveTransactions(transactions);
     }
   };
 
