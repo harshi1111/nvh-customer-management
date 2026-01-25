@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import Customer from '../models/Customer';
 import Project from '../models/Project';
 import Transaction from '../models/Transaction';
-import { AadhaarEncryption } from '../utils/encryption';
-
+import { createErrorResponse, handleControllerError } from '../utils/errorResponse';
 
 // Get all customers
 export const getAllCustomers = async (req: Request, res: Response): Promise<void> => {
@@ -37,11 +37,7 @@ export const getAllCustomers = async (req: Request, res: Response): Promise<void
       data: customers
     });
   } catch (error) {
-    console.error('Get all customers error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
 
@@ -53,10 +49,7 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
       .populate('projects', 'name status');
     
     if (!customer) {
-      res.status(404).json({
-        success: false,
-        error: 'Customer not found'
-      });
+      res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
@@ -86,15 +79,11 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
       }
     });
   } catch (error) {
-    console.error('Get customer by ID error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
 
-// Create new customer - FIXED DUPLICATE CHECK
+// Create new customer - EFFICIENT DUPLICATE CHECK
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('=== CREATE CUSTOMER START ===');
@@ -104,43 +93,51 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
       contact: req.body.contactNumber
     });
 
-    // Check if Aadhaar already exists - SIMPLE FIX
+    // Check if Aadhaar already exists - EFFICIENT VERSION
     if (req.body.aadhaarNumber) {
       const cleanAadhaar = req.body.aadhaarNumber.replace(/\s/g, '');
       
-      // Try to find by contact number first (more reliable)
+      // 1. Check by contact number (exact match)
       const existingByContact = await Customer.findOne({ 
         contactNumber: req.body.contactNumber 
       });
       
       if (existingByContact) {
         console.log('Duplicate found by contact number:', existingByContact.fullName);
-        res.status(400).json({
-          success: false,
-          error: `Customer with contact number ${req.body.contactNumber} already exists: ${existingByContact.fullName}`
-        });
+        res.status(400).json(createErrorResponse(
+          `Customer with contact number ${req.body.contactNumber} already exists: ${existingByContact.fullName}`,
+          400
+        ));
         return;
       }
       
-      // Try to find by name and partial Aadhaar match
-      // Search for customers with similar Aadhaar patterns
-      const allCustomers = await Customer.find({}).select('aadhaarNumber fullName contactNumber');
-      
-      for (const customer of allCustomers) {
-        const storedAadhaar = customer.get('aadhaarNumber', null, { getters: false });
+      // 2. Check by Aadhaar hash (if valid Aadhaar)
+      if (/^\d{12}$/.test(cleanAadhaar)) {
+        const aadhaarHash = crypto.createHash('sha256').update(cleanAadhaar).digest('hex');
+        const existingByHash = await Customer.findOne({ aadhaarHash });
         
-        // Check if stored Aadhaar contains any part of the new Aadhaar
-        if (storedAadhaar && storedAadhaar.includes(cleanAadhaar.substring(0, 4))) {
-          console.log('Possible duplicate found:', customer.fullName);
-          res.status(400).json({
-            success: false,
-            error: `Possible duplicate found: ${customer.fullName} (Aadhaar: ${customer.aadhaarNumber})`
-          });
+        if (existingByHash) {
+          console.log('Duplicate found by Aadhaar hash:', existingByHash.fullName);
+          res.status(400).json(createErrorResponse(
+            `Customer with this Aadhaar already exists: ${existingByHash.fullName}`,
+            400
+          ));
           return;
         }
       }
+      
+      // 3. Check by similar name (fuzzy match - optional but helpful)
+      const existingByName = await Customer.findOne({
+        fullName: { $regex: `^${req.body.fullName.substring(0, 3)}`, $options: 'i' }
+      });
+      
+      if (existingByName) {
+        console.log('Possible duplicate by name:', existingByName.fullName);
+        // Warn but don't block - names can be similar
+        console.warn(`Warning: Similar name found: ${existingByName.fullName}`);
+      }
     }
-    
+
     console.log('No duplicates found, creating customer...');
     
     // Create the customer
@@ -157,26 +154,7 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
     });
     
   } catch (error: any) {
-    console.error('Create customer error:', error);
-    
-    // MongoDB duplicate key error (unique constraint violation)
-    if (error.code === 11000) {
-      res.status(400).json({
-        success: false,
-        error: 'Aadhaar number already exists in the database'
-      });
-    } else if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((err: any) => err.message);
-      res.status(400).json({
-        success: false,
-        error: messages.join(', ')
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Server error: ' + error.message
-      });
-    }
+    handleControllerError(error, res);
   }
 };
 
@@ -193,10 +171,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
     ).select('-__v');
     
     if (!customer) {
-      res.status(404).json({
-        success: false,
-        error: 'Customer not found'
-      });
+      res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
@@ -205,20 +180,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
       data: customer
     });
   } catch (error: any) {
-    console.error('Update customer error:', error);
-    
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((err: any) => err.message);
-      res.status(400).json({
-        success: false,
-        error: messages.join(', ')
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Server error'
-      });
-    }
+    handleControllerError(error, res);
   }
 };
 
@@ -228,10 +190,7 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
     const customer = await Customer.findById(req.params.id);
     
     if (!customer) {
-      res.status(404).json({
-        success: false,
-        error: 'Customer not found'
-      });
+      res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
@@ -250,11 +209,7 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
       data: {}
     });
   } catch (error) {
-    console.error('Delete customer error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
 
@@ -264,10 +219,7 @@ export const toggleCustomerStatus = async (req: Request, res: Response): Promise
     const customer = await Customer.findById(req.params.id);
     
     if (!customer) {
-      res.status(404).json({
-        success: false,
-        error: 'Customer not found'
-      });
+      res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
@@ -279,11 +231,7 @@ export const toggleCustomerStatus = async (req: Request, res: Response): Promise
       data: customer
     });
   } catch (error) {
-    console.error('Toggle customer status error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
 
@@ -318,10 +266,6 @@ export const getCustomerFinancialSummary = async (req: Request, res: Response): 
       }
     });
   } catch (error) {
-    console.error('Get financial summary error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
