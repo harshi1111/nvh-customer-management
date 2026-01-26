@@ -16,12 +16,12 @@ import { corsOptions, handleCorsError } from './utils/corsConfig';
 
 const app = express();
 
-// 1. Handle OPTIONS preflight requests FIRST - UPDATED
+// 1. Handle OPTIONS preflight requests FIRST - SIMPLIFIED
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
   
-  // Allow any Vercel deployment of your project
-  if (origin && origin.includes('nvh-customer-management') && origin.endsWith('.vercel.app')) {
+  // TEMPORARY: Allow ANY origin
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
@@ -31,8 +31,13 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// 2. Apply CORS middleware with professional config
-app.use(cors(corsOptions));
+// 2. Apply CORS middleware - SIMPLE
+app.use(cors({
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+}));
 
 // 3. Security middleware
 app.use(helmet({
@@ -108,7 +113,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   
   // Set CORS headers for all errors
   const origin = req.headers.origin;
-  if (origin && origin.includes('nvh-customer-management')) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
