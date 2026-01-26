@@ -10,6 +10,25 @@ export interface AuthRequest extends Request {
 // JWT Secret from environment
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+// Helper function to send error with CORS headers
+const sendErrorWithCors = (res: Response, status: number, message: string) => {
+  // Set CORS headers for error responses
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://nvh-customer-management.vercel.app',
+    'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  return res.status(status).json({ error: message });
+};
+
 // Generate JWT Token
 export const generateToken = (userId: string, role: string): string => {
   return jwt.sign(
@@ -29,8 +48,7 @@ export const authenticate = async (
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
+      return sendErrorWithCors(res, 401, 'Authentication required');
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
@@ -39,14 +57,13 @@ export const authenticate = async (
     const user = await User.findByPk(decoded.userId);
     
     if (!user || !user.isActive) {
-      res.status(401).json({ error: 'User not found or inactive' });
-      return;
+      return sendErrorWithCors(res, 401, 'User not found or inactive');
     }
 
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    return sendErrorWithCors(res, 401, 'Invalid token');
   }
 };
 
@@ -54,13 +71,11 @@ export const authenticate = async (
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
+      return sendErrorWithCors(res, 401, 'Authentication required');
     }
 
     if (!roles.includes(req.user.role)) {
-      res.status(403).json({ error: 'Insufficient permissions' });
-      return;
+      return sendErrorWithCors(res, 403, 'Insufficient permissions');
     }
 
     next();
