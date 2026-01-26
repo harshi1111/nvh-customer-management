@@ -1,4 +1,16 @@
 import express from 'express';
+const app = express();
+
+// OPTIONS HANDLER MUST BE FIRST - BEFORE ANYTHING ELSE
+app.options('*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://nvh-customer-management.vercel.app');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.sendStatus(200);
+});
+
+// Now import everything else
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -13,17 +25,6 @@ import transactionRoutes from './routes/transaction.routes';
 // Import middleware
 import { authenticate, authorize } from './middleware/auth';
 import { corsOptions, handleCorsError } from './utils/corsConfig';
-
-const app = express();
-
-// 1. Handle OPTIONS preflight requests FIRST - PRODUCTION
-app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://nvh-customer-management.vercel.app');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.sendStatus(200);
-});
 
 // 2. Apply CORS middleware with professional config
 app.use(cors(corsOptions));
