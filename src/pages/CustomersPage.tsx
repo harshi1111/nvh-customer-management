@@ -1,4 +1,4 @@
-// pages/CustomersPage.tsx - UPDATED WITH MONGODB SYNC
+// pages/CustomersPage.tsx - UPDATED WITH DATABASE SYNC
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Customer } from '../types';
@@ -25,10 +25,10 @@ const CustomersPage: React.FC = () => {
 
   // Load customers from MongoDB
   useEffect(() => {
-    loadCustomersFromMongoDB();
+    loadCustomersFromDatabase();
   }, []);
 
-  const loadCustomersFromMongoDB = async () => {
+  const loadCustomersFromDatabase = async () => {
     try {
       setLoading(true);
       const response = await customerApi.getAll();
@@ -56,7 +56,7 @@ const CustomersPage: React.FC = () => {
         storage.saveCustomers(mongoCustomers);
       }
     } catch (error) {
-      console.error('Failed to load from MongoDB:', error);
+      console.error('Failed to load from database:', error);
       // Fallback to LocalStorage
       const localCustomers = storage.getCustomers();
       setCustomers(localCustomers);
@@ -117,7 +117,7 @@ const CustomersPage: React.FC = () => {
       }
       
       // Reload customers from MongoDB to get latest
-      await loadCustomersFromMongoDB();
+      await loadCustomersFromDatabase();
       
       // Set as selected customer
       setSelectedCustomer(frontendCustomer);
@@ -690,7 +690,7 @@ const CustomersPage: React.FC = () => {
                     storage.addCustomer(frontendCustomer);
                     
                     // Reload customers
-                    await loadCustomersFromMongoDB();
+                    await loadCustomersFromDatabase();
                     
                     // Set as selected customer
                     setSelectedCustomer(frontendCustomer);
