@@ -16,28 +16,17 @@ import { corsOptions, handleCorsError } from './utils/corsConfig';
 
 const app = express();
 
-// 1. Handle OPTIONS preflight requests FIRST - SIMPLIFIED
+// 1. Handle OPTIONS preflight requests FIRST - PRODUCTION
 app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  
-  // TEMPORARY: Allow ANY origin
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
+  res.setHeader('Access-Control-Allow-Origin', 'https://nvh-customer-management.vercel.app');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.sendStatus(200);
 });
 
-// 2. Apply CORS middleware - SIMPLE
-app.use(cors({
-  origin: '*',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
-}));
+// 2. Apply CORS middleware with professional config
+app.use(cors(corsOptions));
 
 // 3. Security middleware
 app.use(helmet({
@@ -113,7 +102,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   
   // Set CORS headers for all errors
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && origin.includes('nvh-customer-management')) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
