@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User, { IUser } from '../models/User';
+import User from '../models/User';
 
+// Update AuthRequest interface
 export interface AuthRequest extends Request {
-  user?: IUser;
+  user?: User; // Use User class, not IUser interface
 }
 
 // JWT Secret from environment
@@ -33,7 +34,9 @@ export const authenticate = async (
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-    const user = await User.findById(decoded.userId);
+    
+    // SEQUELIZE: Use findByPk instead of findById
+    const user = await User.findByPk(decoded.userId);
     
     if (!user || !user.isActive) {
       res.status(401).json({ error: 'User not found or inactive' });

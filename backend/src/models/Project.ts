@@ -1,91 +1,114 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, HasMany, AllowNull, Default } from 'sequelize-typescript';
+import { Optional } from 'sequelize';
+import Customer from './Customer';
+import Transaction from './Transaction';
 
-export interface IProject extends Document {
-  customerId: mongoose.Types.ObjectId;
+interface ProjectAttributes {
+  id: string;
+  customerId: string;
   name: string;
-  location: {
-    country: string;
-    state: string;
-    city: string;
-    village: string;
-  };
-  numberOfBags: number;
-  area: {
-    value: number;
-    unit: 'acres' | 'cent';
-  };
-  status: 'active' | 'completed' | 'planned';
+  description?: string;
+  location: string;
+  startDate: string;
+  endDate?: string;
+  status: 'active' | 'completed' | 'on_hold';
+  totalBudget: number;
+  spentAmount: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const ProjectSchema: Schema = new Schema({
-  customerId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Customer',
-    required: [true, 'Customer ID is required']
-  },
-  name: {
-    type: String,
-    required: [true, 'Project name is required'],
-    trim: true
-  },
-  location: {
-    country: {
-      type: String,
-      required: [true, 'Country is required'],
-      default: 'India'
-    },
-    state: {
-      type: String,
-      required: [true, 'State is required']
-    },
-    city: {
-      type: String,
-      required: [true, 'City is required']
-    },
-    village: {
-      type: String,
-      default: ''
-    }
-  },
-  numberOfBags: {
-    type: Number,
-    required: [true, 'Number of bags is required'],
-    min: [0, 'Number of bags cannot be negative'],
-    default: 0
-  },
-  area: {
-    value: {
-      type: Number,
-      required: [true, 'Area value is required'],
-      min: [0, 'Area cannot be negative']
-    },
-    unit: {
-      type: String,
-      enum: ['acres', 'cent'],
-      default: 'acres'
-    }
-  },
-  status: {
-    type: String,
-    enum: ['active', 'completed', 'planned'],
-    default: 'active'
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {
+interface ProjectCreationAttributes extends Optional<ProjectAttributes, 'id' | 'createdAt' | 'updatedAt' | 'spentAmount'> {}
+
+@Table({
+  tableName: 'projects',
   timestamps: true
-});
+})
+class Project extends Model<ProjectAttributes, ProjectCreationAttributes> {
+  @Column({
+    type: DataType.UUID,
+    defaultValue: DataType.UUIDV4,
+    primaryKey: true,
+  })
+  id!: string;
 
-// Index for faster customer project queries
-ProjectSchema.index({ customerId: 1 });
-ProjectSchema.index({ status: 1 });
+  @ForeignKey(() => Customer)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+  })
+  customerId!: string;
 
-export default mongoose.model<IProject>('Project', ProjectSchema);
+  @BelongsTo(() => Customer)
+  customer!: Customer;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  name!: string;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+  })
+  description!: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  location!: string;
+
+  @Column({
+    type: DataType.DATEONLY,
+    allowNull: false,
+  })
+  startDate!: string;
+
+  @Column({
+    type: DataType.DATEONLY,
+    allowNull: true,
+  })
+  endDate!: string;
+
+  @Column({
+    type: DataType.ENUM('active', 'completed', 'on_hold'),
+    allowNull: false,
+    defaultValue: 'active'
+  })
+  status!: 'active' | 'completed' | 'on_hold';
+
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0
+  })
+  totalBudget!: number;
+
+  @Default(0)
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+  })
+  spentAmount!: number;
+
+  @HasMany(() => Transaction)
+  transactions!: Transaction[];
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  createdAt!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  updatedAt!: Date;
+}
+
+export default Project;

@@ -1,8 +1,11 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
-import crypto from 'crypto';
-import { AadhaarEncryption } from '../utils/encryption';
+import { Table, Column, Model, DataType, HasMany, BeforeCreate, BeforeUpdate } from 'sequelize-typescript';
+import { Optional } from 'sequelize';
+import Project from './Project';
+import Transaction from './Transaction';
+import { encryptAadhaar, decryptAadhaar, createAadhaarHash } from '../utils/sequelizeEncryption';
 
-export interface ICustomer extends Document {
+interface CustomerAttributes {
+  id: string;
   aadhaarNumber: string;
   aadhaarHash: string;
   fullName: string;
@@ -10,182 +13,157 @@ export interface ICustomer extends Document {
   dateOfBirth: string;
   address: string;
   contactNumber: string;
-  email: string;
+  email?: string;
   profileImage?: string;
   isActive: boolean;
-  projects: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-const CustomerSchema: Schema = new Schema({
-  aadhaarNumber: {
-    type: String,
-    required: false,
-    unique: true,
-    trim: true,
-    set: (value: string) => {
-      if (!value) return value; // Return null/undefined as is
-      
-      const cleanValue = value.replace(/\s/g, '');
-      
-      // Only encrypt if it looks like an Aadhaar (12 digits)
-      if (/^\d{12}$/.test(cleanValue)) {
-        return AadhaarEncryption.encrypt(cleanValue);
-      }
-      
-      // For invalid formats, still encrypt but mark as invalid
-      // This ensures ALL sensitive data is encrypted
-      console.warn(`Storing invalid Aadhaar format: ${value.substring(0, 4)}...`);
-      return AadhaarEncryption.encrypt(`INVALID-${cleanValue}`);
-    },
-    get: (value: string) => {
-      if (!value) return value;
-      
-      try {
-        // Try to decrypt and validate
-        const decrypted = AadhaarEncryption.decrypt(value);
-        
-        // Check if it was marked as invalid
-        if (decrypted.startsWith('INVALID-')) {
-          const original = decrypted.replace('INVALID-', '');
-          return AadhaarEncryption.mask(original) + ' (Invalid Format)';
-        }
-        
-        // Valid Aadhaar
-        return AadhaarEncryption.mask(decrypted);
-      } catch (error) {
-        // If decryption fails, it might be unencrypted (old data)
-        console.warn('Failed to decrypt Aadhaar, returning as-is');
-        return value.length === 12 ? AadhaarEncryption.mask(value) : value;
-      }
-    }
-  },
-  aadhaarHash: {
-    type: String,
-    unique: true,
-    sparse: true,
-    trim: true,
-    set: function(value: string) {
-      if (!value) return null;
-      const cleanAadhaar = value.replace(/\s/g, '');
-      
-      // Don't create hash for invalid Aadhaar
-      if (!/^\d{12}$/.test(cleanAadhaar)) {
-        return null;
-      }
-      
-      return crypto.createHash('sha256').update(cleanAadhaar).digest('hex');
-    }
-  },
-  fullName: {
-    type: String,
-    required: [true, 'Full name is required'],
-    trim: true,
-    minlength: [3, 'Full name must be at least 3 characters']
-  },
-  gender: {
-    type: String,
-    enum: ['Male', 'Female', 'Other'],
-    required: [true, 'Gender is required']
-  },
-  dateOfBirth: {
-    type: String,
-    required: [true, 'Date of birth is required']
-  },
-  address: {
-    type: String,
-    required: [true, 'Address is required'],
-    trim: true
-  },
-  contactNumber: {
-    type: String,
-    required: [true, 'Contact number is required'],
-    trim: true,
-    minlength: [10, 'Contact number must be 10 digits'],
-    maxlength: [10, 'Contact number must be 10 digits']
-  },
-  email: {
-    type: String,
-    trim: true,
-    lowercase: true,
-    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
-  },
-  profileImage: {
-    type: String,
-    trim: true
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  projects: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Project',
-    default: []
-  }],
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {
+interface CustomerCreationAttributes extends Optional<CustomerAttributes, 'id' | 'createdAt' | 'updatedAt' | 'aadhaarHash'> {}
+
+@Table({
+  tableName: 'customers',
   timestamps: true,
-  toJSON: { getters: true },
-  toObject: { getters: true }
-});
-
-// Create indexes for faster queries
-CustomerSchema.index({ fullName: 'text', contactNumber: 'text' });
-
-// Virtual for getting the original Aadhaar (decrypted) - use with caution
-CustomerSchema.virtual('originalAadhaar').get(function(this: ICustomer) {
-  const aadhaar = this.get('aadhaarNumber', null, { getters: false });
-  if (!aadhaar) return null;
-  
-  try {
-    const decrypted = AadhaarEncryption.decrypt(aadhaar);
-    // Remove INVALID- prefix if present
-    return decrypted.startsWith('INVALID-') 
-      ? decrypted.replace('INVALID-', '') 
-      : decrypted;
-  } catch (error) {
-    console.warn('Failed to decrypt for originalAadhaar');
-    return aadhaar;
-  }
-});
-
-// Virtual for getting fully masked Aadhaar (XXXX-XXXX-1234)
-CustomerSchema.virtual('maskedAadhaar').get(function(this: ICustomer) {
-  const aadhaar = this.get('aadhaarNumber', null, { getters: false });
-  if (!aadhaar) return null;
-  
-  try {
-    const decrypted = AadhaarEncryption.decrypt(aadhaar);
-    if (decrypted.startsWith('INVALID-')) {
-      const original = decrypted.replace('INVALID-', '');
-      return AadhaarEncryption.mask(original) + ' (Invalid Format)';
+  hooks: {
+    beforeCreate: async (instance: Customer) => {
+      await instance.encryptAndHashAadhaar();
+    },
+    beforeUpdate: async (instance: Customer) => {
+      await instance.encryptAndHashAadhaar();
     }
-    return AadhaarEncryption.mask(decrypted);
-  } catch (error) {
-    return aadhaar.length === 12 ? AadhaarEncryption.mask(aadhaar) : aadhaar;
   }
-});
+})
+class Customer extends Model<CustomerAttributes, CustomerCreationAttributes> {
+  @Column({
+    type: DataType.UUID,
+    defaultValue: DataType.UUIDV4,
+    primaryKey: true,
+  })
+  id!: string;
 
-// Virtual to check if stored Aadhaar is valid format
-CustomerSchema.virtual('isValidAadhaarFormat').get(function(this: ICustomer) {
-  const aadhaar = this.get('aadhaarNumber', null, { getters: false });
-  if (!aadhaar) return false;
-  
-  try {
-    const decrypted = AadhaarEncryption.decrypt(aadhaar);
-    return !decrypted.startsWith('INVALID-') && /^\d{12}$/.test(decrypted);
-  } catch (error) {
-    return /^\d{12}$/.test(aadhaar);
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+    unique: true,
+  })
+  aadhaarNumber!: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+    unique: true,
+  })
+  aadhaarHash!: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  fullName!: string;
+
+  @Column({
+    type: DataType.ENUM('Male', 'Female', 'Other'),
+    allowNull: false,
+  })
+  gender!: 'Male' | 'Female' | 'Other';
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  dateOfBirth!: string;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: false,
+  })
+  address!: string;
+
+  @Column({
+    type: DataType.STRING(10),
+    allowNull: false,
+    validate: {
+      len: [10, 10]
+    }
+  })
+  contactNumber!: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+    validate: {
+      isEmail: true,
+    }
+  })
+  email!: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  profileImage!: string;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  })
+  isActive!: boolean;
+
+  @HasMany(() => Project)
+  projects!: Project[];
+
+  @HasMany(() => Transaction)
+  transactions!: Transaction[];
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  createdAt!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  updatedAt!: Date;
+
+  // Manual encryption method
+  public async encryptAndHashAadhaar(): Promise<void> {
+    if (this.aadhaarNumber && !this.aadhaarNumber.startsWith('encrypted::')) {
+      const originalAadhaar = this.aadhaarNumber;
+      this.aadhaarNumber = encryptAadhaar(originalAadhaar);
+      this.aadhaarHash = createAadhaarHash(originalAadhaar) || this.aadhaarHash;
+    }
   }
-});
 
-export default mongoose.model<ICustomer>('Customer', CustomerSchema);
+  // Call this manually before save if needed
+  public async beforeSave(): Promise<void> {
+    await this.encryptAndHashAadhaar();
+  }
+
+  // Custom getter for masked Aadhaar
+  getMaskedAadhaar(): string {
+    return this.aadhaarNumber ? decryptAadhaar(this.aadhaarNumber) : '';
+  }
+
+  // Custom getter for original Aadhaar (use with caution)
+  getOriginalAadhaar(): string {
+    if (!this.aadhaarNumber) return '';
+    
+    try {
+      const { AadhaarEncryption } = require('../utils/encryption');
+      const decrypted = AadhaarEncryption.decrypt(this.aadhaarNumber);
+      return decrypted.startsWith('INVALID-') 
+        ? decrypted.replace('INVALID-', '') 
+        : decrypted;
+    } catch (error) {
+      return this.aadhaarNumber;
+    }
+  }
+}
+
+export default Customer;

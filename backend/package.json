@@ -20,7 +20,9 @@
     "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.0.0",
-    "mongoose": "^8.13.2",
+    "pg": "^8.11.3",
+    "sequelize": "^6.35.0",
+    "sequelize-typescript": "^2.1.6",
     "morgan": "^1.10.0"
   },
   "devDependencies": {
@@ -32,6 +34,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.10.7",
+    "@types/pg": "^8.10.9",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"

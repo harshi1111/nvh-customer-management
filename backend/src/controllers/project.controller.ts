@@ -1,14 +1,16 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
 import Project from '../models/Project';
 import Customer from '../models/Customer';
+import { createErrorResponse, handleControllerError } from '../utils/errorResponse';
 
 // Get all projects for a customer
 export const getCustomerProjects = async (req: Request, res: Response): Promise<void> => {
   try {
-    const projects = await Project.find({ customerId: req.params.customerId })
-      .sort({ createdAt: -1 })
-      .select('-__v');
+    const projects = await Project.findAll({
+      where: { customerId: req.params.customerId },
+      order: [['createdAt', 'DESC']],
+      attributes: { exclude: ['__v'] }
+    });
     
     res.status(200).json({
       success: true,
@@ -16,25 +18,19 @@ export const getCustomerProjects = async (req: Request, res: Response): Promise<
       data: projects
     });
   } catch (error) {
-    console.error('Get customer projects error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
 
 // Get single project by ID
 export const getProjectById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const project = await Project.findById(req.params.id)
-      .select('-__v');
+    const project = await Project.findByPk(req.params.id as string, {
+      attributes: { exclude: ['__v'] }
+    });
     
     if (!project) {
-      res.status(404).json({
-        success: false,
-        error: 'Project not found'
-      });
+      res.status(404).json(createErrorResponse('Project not found', 404));
       return;
     }
     
@@ -43,11 +39,7 @@ export const getProjectById = async (req: Request, res: Response): Promise<void>
       data: project
     });
   } catch (error) {
-    console.error('Get project by ID error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };
 
@@ -55,109 +47,64 @@ export const getProjectById = async (req: Request, res: Response): Promise<void>
 export const createProject = async (req: Request, res: Response): Promise<void> => {
   try {
     // Check if customer exists
-    const customer = await Customer.findById(req.body.customerId);
+    const customer = await Customer.findByPk(req.body.customerId as string);
     
     if (!customer) {
-      res.status(404).json({
-        success: false,
-        error: 'Customer not found'
-      });
+      res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
     const project = await Project.create(req.body);
     
-    // Add project to customer's projects array
-    customer.projects.push(project._id as mongoose.Types.ObjectId);
-    await customer.save();
+    // Note: In Sequelize, associations are handled automatically
+    // No need to manually push to array
     
     res.status(201).json({
       success: true,
       data: project
     });
   } catch (error: any) {
-    console.error('Create project error:', error);
-    
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((err: any) => err.message);
-      res.status(400).json({
-        success: false,
-        error: messages.join(', ')
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Server error'
-      });
-    }
+    handleControllerError(error, res);
   }
 };
 
 // Update project
 export const updateProject = async (req: Request, res: Response): Promise<void> => {
   try {
-    const project = await Project.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { 
-        new: true, 
-        runValidators: true 
-      }
-    ).select('-__v');
+    const project = await Project.findByPk(req.params.id as string);
     
     if (!project) {
-      res.status(404).json({
-        success: false,
-        error: 'Project not found'
-      });
+      res.status(404).json(createErrorResponse('Project not found', 404));
       return;
     }
+    
+    await project.update(req.body);
+    await project.reload();
     
     res.status(200).json({
       success: true,
       data: project
     });
   } catch (error: any) {
-    console.error('Update project error:', error);
-    
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((err: any) => err.message);
-      res.status(400).json({
-        success: false,
-        error: messages.join(', ')
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Server error'
-      });
-    }
+    handleControllerError(error, res);
   }
 };
 
 // Delete project
 export const deleteProject = async (req: Request, res: Response): Promise<void> => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findByPk(req.params.id as string);
     
     if (!project) {
-      res.status(404).json({
-        success: false,
-        error: 'Project not found'
-      });
+      res.status(404).json(createErrorResponse('Project not found', 404));
       return;
     }
     
-    // Remove project from customer's projects array
-    // Cast customerId to string explicitly
-    const customerId = project.customerId as unknown as mongoose.Types.ObjectId;
-    await Customer.findByIdAndUpdate(
-      customerId.toString(),
-      { $pull: { projects: project._id } }
-    );
+    // In Sequelize, cascading delete is handled by associations
+    // If you set onDelete: 'CASCADE' in the model associations
     
-    // Delete project
-    await project.deleteOne();
+    // Delete project (related transactions will be deleted if cascade is set)
+    await project.destroy();
     
     res.status(200).json({
       success: true,
@@ -165,10 +112,6 @@ export const deleteProject = async (req: Request, res: Response): Promise<void> 
       data: {}
     });
   } catch (error) {
-    console.error('Delete project error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
+    handleControllerError(error, res);
   }
 };

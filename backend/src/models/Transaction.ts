@@ -1,20 +1,14 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, Default } from 'sequelize-typescript';
+import { Optional } from 'sequelize';
+import Customer from './Customer';
+import Project from './Project';
 
-export type ExpenseType = 
-  | 'LABOUR_CHARGES'
-  | 'SPRINKLER_INSTALLATION'
-  | 'TRANSPORT'
-  | 'FOOD'
-  | 'PLOUGHING'
-  | 'TRACTOR'
-  | 'COW_GOAT_DUNG'
-  | 'INVESTMENT';
-
-export interface ITransaction extends Document {
-  customerId: mongoose.Types.ObjectId;
-  projectId: mongoose.Types.ObjectId;
+interface TransactionAttributes {
+  id: string;
+  customerId: string;
+  projectId: string;
   serialNumber: number;
-  expenseType: ExpenseType;
+  expenseType: string; // Changed from ExpenseType to string
   quantity?: number;
   unit?: string;
   debitAmount: number;
@@ -25,25 +19,57 @@ export interface ITransaction extends Document {
   updatedAt: Date;
 }
 
-const TransactionSchema: Schema = new Schema({
-  customerId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Customer',
-    required: [true, 'Customer ID is required']
-  },
-  projectId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Project',
-    required: [true, 'Project ID is required']
-  },
-  serialNumber: {
-    type: Number,
-    required: [true, 'Serial number is required'],
-    min: [1, 'Serial number must be at least 1']
-  },
-  expenseType: {
-    type: String,
-    enum: [
+interface TransactionCreationAttributes extends Optional<TransactionAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+
+@Table({
+  tableName: 'transactions',
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['customerId', 'projectId', 'serialNumber']
+    },
+    {
+      fields: ['customerId', 'projectId']
+    }
+  ]
+})
+class Transaction extends Model<TransactionAttributes, TransactionCreationAttributes> {
+  @Column({
+    type: DataType.UUID,
+    defaultValue: DataType.UUIDV4,
+    primaryKey: true,
+  })
+  id!: string;
+
+  @ForeignKey(() => Customer)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+  })
+  customerId!: string;
+
+  @BelongsTo(() => Customer)
+  customer!: Customer;
+
+  @ForeignKey(() => Project)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+  })
+  projectId!: string;
+
+  @BelongsTo(() => Project)
+  project!: Project;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+  })
+  serialNumber!: number;
+
+  @Column({
+    type: DataType.ENUM(
       'LABOUR_CHARGES',
       'SPRINKLER_INSTALLATION',
       'TRANSPORT',
@@ -52,54 +78,63 @@ const TransactionSchema: Schema = new Schema({
       'TRACTOR',
       'COW_GOAT_DUNG',
       'INVESTMENT'
-    ],
-    required: [true, 'Expense type is required']
-  },
-  quantity: {
-    type: Number,
-    min: [0, 'Quantity cannot be negative'],
-    default: 0
-  },
-  unit: {
-    type: String,
-    trim: true
-  },
-  debitAmount: {
-    type: Number,
-    required: [true, 'Debit amount is required'],
-    min: [0, 'Debit amount cannot be negative'],
-    default: 0
-  },
-  creditAmount: {
-    type: Number,
-    required: [true, 'Credit amount is required'],
-    min: [0, 'Credit amount cannot be negative'],
-    default: 0
-  },
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [500, 'Description cannot exceed 500 characters']
-  },
-  transactionDate: {
-    type: Date,
-    required: [true, 'Transaction date is required'],
-    default: Date.now
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {
-  timestamps: true
-});
+    ),
+    allowNull: false,
+  })
+  expenseType!: string; // Changed from ExpenseType to string
 
-// Compound index for customer+project transactions
-TransactionSchema.index({ customerId: 1, projectId: 1 });
-TransactionSchema.index({ customerId: 1, projectId: 1, serialNumber: 1 }, { unique: true });
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+  })
+  quantity!: number;
 
-export default mongoose.model<ITransaction>('Transaction', TransactionSchema);
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  unit!: string;
+
+  @Default(0)
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+  })
+  debitAmount!: number;
+
+  @Default(0)
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+  })
+  creditAmount!: number;
+
+  @Column({
+    type: DataType.STRING(500),
+    allowNull: true,
+  })
+  description!: string;
+
+  @Column({
+    type: DataType.DATEONLY,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  transactionDate!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  createdAt!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    defaultValue: DataType.NOW,
+  })
+  updatedAt!: Date;
+}
+
+export default Transaction;

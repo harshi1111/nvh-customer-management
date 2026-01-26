@@ -9,8 +9,8 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ username });
+    // Find user - SEQUELIZE SYNTAX
+    const user = await User.findOne({ where: { username } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -26,14 +26,18 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate token
-    const token = generateToken(user._id.toString(), user.role);
+    // Generate token - USE user.id NOT user._id
+    const token = generateToken(user.id, user.role);
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
 
     // Send response
     res.json({
       token,
       user: {
-        id: user._id,
+        id: user.id, // Use id not _id
         username: user.username,
         role: user.role
       }
@@ -50,9 +54,10 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     const user = req.user;
     res.json({
       user: {
-        id: user?._id,
+        id: user?.id, // Use id not _id
         username: user?.username,
-        role: user?.role
+        role: user?.role,
+        lastLogin: user?.lastLogin
       }
     });
   } catch (error) {
