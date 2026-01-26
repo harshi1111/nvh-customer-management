@@ -31,48 +31,13 @@ export const getCorsOrigins = (): string[] => {
 };
 
 export const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    const allowedOrigins = getCorsOrigins();
-    
-    // Allow requests with no origin
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Check exact matches
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // Check Vercel preview deployments - FIXED PATTERN
-    // Matches: https://nvh-customer-management-XXXX-XXXX.harshi1111.vercel.app
-    // Or: https://nvh-customer-management-XXXX-XXXX-harshi1111s-projects.vercel.app
-    const vercelPatterns = [
-      /^https:\/\/nvh-customer-management(-[\w-]+)*\.vercel\.app$/,
-      /^https:\/\/nvh-customer-management(-[\w-]+)*-harshi1111s-projects\.vercel\.app$/,
-      /^https:\/\/nvh-customer-management(-[\w-]+)*\.harshi1111\.vercel\.app$/
-    ];
-    
-    if (vercelPatterns.some(pattern => pattern.test(origin))) {
-      return callback(null, true);
-    }
-    
-    // Also allow any .vercel.app domain for your project (safest for now)
-    if (origin.includes('nvh-customer-management') && origin.endsWith('.vercel.app')) {
-      console.log(`Allowing Vercel preview: ${origin}`);
-      return callback(null, true);
-    }
-    
-    console.warn(`CORS blocked: ${origin}. Allowed origins:`, allowedOrigins);
-    callback(new Error('Not allowed by CORS'));
-  },
+  origin: '*', // TEMPORARY: Allow ALL origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400
 };
-
 export const handleCorsError = (req: any, res: any, error: Error) => {
   const origin = req.headers.origin;
   
