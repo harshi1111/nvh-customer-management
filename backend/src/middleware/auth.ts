@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
-import { getCorsOrigins } from '../utils/corsConfig'; // ADD THIS
+import { getCorsOrigins } from '../utils/corsConfig';
 
 // Update AuthRequest interface
 export interface AuthRequest extends Request {
@@ -14,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dee4bf44403a243bed5d7adde4af3e2a4c
 // Helper function to send error with CORS headers
 const sendErrorWithCors = (req: Request, res: Response, status: number, message: string) => {
   const origin = req.headers.origin;
-  const allowedOrigins = getCorsOrigins(); // USE THE UTILITY
+  const allowedOrigins = getCorsOrigins();
   
   if (origin && (allowedOrigins.includes(origin) || origin.includes('nvh-customer-management'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -39,6 +39,11 @@ export const authenticate = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  // SKIP authentication for OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+  
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
