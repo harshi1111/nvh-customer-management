@@ -24,29 +24,7 @@ const allowedOrigins = [
   'http://localhost:5173'
 ];
 
-// CORS MUST BE FIRST!
-app.use(cors({
-  origin: function (origin: string | undefined, callback: Function) {
-    // Allow requests with no origin (like mobile apps, curl, or same-origin)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // Log blocked origins for debugging
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // Cache preflight requests for 10 minutes
-}));
-
-// FIX: Explicit OPTIONS handler for preflight requests
+// STEP 1: Handle OPTIONS requests FIRST (before CORS middleware)
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
@@ -58,13 +36,31 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
+// STEP 2: CORS middleware
+app.use(cors({
+  origin: function (origin: string | undefined, callback: Function) {
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600
+}));
+
 // Security middleware
 app.use(helmet({
-  // Adjust helmet for API use
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Session middleware (for family authentication)
+// Session middleware
 app.use(session({
   secret: process.env.JWT_SECRET || 'your-session-secret',
   resave: false,
@@ -72,7 +68,7 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000
   }
 }));
 
@@ -83,18 +79,18 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Public routes (no authentication needed)
+// Public routes
 app.use('/api/auth', authRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'NVH Agri System Backend',
-    allowedOrigins: allowedOrigins // Useful for debugging
+    allowedOrigins: allowedOrigins
   });
 });
 
-// Protected routes (require authentication)
+// Protected routes
 app.use('/api/customers', authenticate, customerRoutes);
 app.use('/api/projects', authenticate, projectRoutes);
 app.use('/api/transactions', authenticate, transactionRoutes);
@@ -104,13 +100,11 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Error handler with CORS error handling
+// Error handler
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', error);
   
-  // Handle CORS errors specifically
   if (error.message === 'Not allowed by CORS') {
-    // Set CORS headers for CORS error responses
     const origin = req.headers.origin;
     if (origin && allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
@@ -124,7 +118,6 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
     });
   }
   
-  // Set CORS headers for other errors too
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
