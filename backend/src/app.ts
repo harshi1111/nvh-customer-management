@@ -15,13 +15,11 @@ import { authenticate, authorize } from './middleware/auth';
 
 const app = express();
 
-// FIXED CORS CONFIGURATION
 const allowedOrigins = [
   'https://nvh-customer-management.vercel.app',
   'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
-  // Include your backend URL for testing
+  'https://nvh-customer-management-gtvw1nyb9-harshi1111s-projects.vercel.app',
   'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app',
-  // Local development
   'http://localhost:3000',
   'http://localhost:5173'
 ];
@@ -48,8 +46,17 @@ app.use(cors({
   maxAge: 600 // Cache preflight requests for 10 minutes
 }));
 
-// Handle preflight requests explicitly
-app.options('*', cors());
+// FIX: Explicit OPTIONS handler for preflight requests
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.sendStatus(200);
+});
 
 // Security middleware
 app.use(helmet({
@@ -103,12 +110,26 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   
   // Handle CORS errors specifically
   if (error.message === 'Not allowed by CORS') {
+    // Set CORS headers for CORS error responses
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
     return res.status(403).json({
       error: 'CORS Error',
       message: 'Origin not allowed',
       allowedOrigins: allowedOrigins
     });
   }
+  
+  // Set CORS headers for other errors too
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   res.status(error.status || 500).json({
     error: error.message || 'Internal server error'
