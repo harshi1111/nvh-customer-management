@@ -19,6 +19,7 @@ const allowedOrigins = [
   'https://nvh-customer-management.vercel.app',
   'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
   'https://nvh-customer-management-gtvw1nyb9-harshi1111s-projects.vercel.app',
+  'https://nvh-customer-management-fcvqj9tr6-harshi1111s-projects.vercel.app', // ADD THIS
   'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173'
@@ -91,9 +92,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Protected routes
-app.use('/api/customers', authenticate, customerRoutes);
-app.use('/api/projects', authenticate, projectRoutes);
-app.use('/api/transactions', authenticate, transactionRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/projects',  projectRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -15,12 +15,13 @@ const sendErrorWithCors = (req: Request, res: Response, status: number, message:
   // Set CORS headers for error responses
   const origin = req.headers.origin;
   const allowedOrigins = [
-    'https://nvh-customer-management.vercel.app',
-    'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
-    'https://nvh-customer-management-gtvw1nyb9-harshi1111s-projects.vercel.app',
-    'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
+  'https://nvh-customer-management.vercel.app',
+  'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
+  'https://nvh-customer-management-gtvw1nyb9-harshi1111s-projects.vercel.app',
+  'https://nvh-customer-management-fcvqj9tr6-harshi1111s-projects.vercel.app', // ADD THIS
+  'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173'
   ];
   
   if (origin && allowedOrigins.includes(origin)) {
