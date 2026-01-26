@@ -12,73 +12,59 @@ import transactionRoutes from './routes/transaction.routes';
 
 // Import middleware
 import { authenticate, authorize } from './middleware/auth';
+import { corsOptions, handleCorsError } from './utils/corsConfig';
 
 const app = express();
 
-const allowedOrigins = [
-  'https://nvh-customer-management.vercel.app',
-  'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
-  'https://nvh-customer-management-gtvw1nyb9-harshi1111s-projects.vercel.app',
-  'https://nvh-customer-management-fcvqj9tr6-harshi1111s-projects.vercel.app', // ADD THIS
-  'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5173'
-];
-
-// STEP 1: Handle OPTIONS requests FIRST (before CORS middleware)
+// 1. Handle OPTIONS preflight requests FIRST - UPDATED
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  
+  // Allow any Vercel deployment of your project
+  if (origin && origin.includes('nvh-customer-management') && origin.endsWith('.vercel.app')) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
+  
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.sendStatus(200);
 });
 
-// STEP 2: CORS middleware
-app.use(cors({
-  origin: function (origin: string | undefined, callback: Function) {
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600
-}));
+// 2. Apply CORS middleware with professional config
+app.use(cors(corsOptions));
 
-// Security middleware
+// 3. Security middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+    },
+  },
 }));
 
 // Session middleware
 app.use(session({
-  secret: process.env.JWT_SECRET || 'your-session-secret',
+  secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000
   }
 }));
 
 // Logging
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Public routes
 app.use('/api/auth', authRoutes);
@@ -87,46 +73,56 @@ app.get('/api/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'NVH Agri System Backend',
-    allowedOrigins: allowedOrigins
+    environment: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version
   });
 });
 
 // Protected routes
-app.use('/api/customers', customerRoutes);
-app.use('/api/projects',  projectRoutes);
-app.use('/api/transactions', transactionRoutes);
+app.use('/api/customers', authenticate, customerRoutes);
+app.use('/api/projects', authenticate, projectRoutes);
+app.use('/api/transactions', authenticate, transactionRoutes);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method 
+  });
 });
 
 // Error handler
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', error);
+  console.error('Server Error:', {
+    message: error.message,
+    stack: error.stack,
+    path: req.path,
+    method: req.method
+  });
   
+  // Handle CORS errors
   if (error.message === 'Not allowed by CORS') {
-    const origin = req.headers.origin;
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    }
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    return res.status(403).json({
-      error: 'CORS Error',
-      message: 'Origin not allowed',
-      allowedOrigins: allowedOrigins
-    });
+    return handleCorsError(req, res, error);
   }
   
+  // Set CORS headers for all errors
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin && origin.includes('nvh-customer-management')) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
-  res.status(error.status || 500).json({
-    error: error.message || 'Internal server error'
+  // Return appropriate error response
+  const status = error.statusCode || error.status || 500;
+  const message = process.env.NODE_ENV === 'production' && status === 500 
+    ? 'Internal server error' 
+    : error.message;
+  
+  res.status(status).json({
+    error: message,
+    status,
+    ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
   });
 });
 

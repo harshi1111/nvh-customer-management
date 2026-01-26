@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
+import { getCorsOrigins } from '../utils/corsConfig'; // ADD THIS
 
 // Update AuthRequest interface
 export interface AuthRequest extends Request {
@@ -8,23 +9,14 @@ export interface AuthRequest extends Request {
 }
 
 // JWT Secret from environment
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'dee4bf44403a243bed5d7adde4af3e2a4cdbbcad7d917c4f490b387986da1d5445860072893f0a39cc3566c283a712a0f001c12d87f5ef76923f6ac4dc3d6df2';
 
 // Helper function to send error with CORS headers
 const sendErrorWithCors = (req: Request, res: Response, status: number, message: string) => {
-  // Set CORS headers for error responses
   const origin = req.headers.origin;
-  const allowedOrigins = [
-  'https://nvh-customer-management.vercel.app',
-  'https://nvh-customer-management-4k5at189h-harshi1111s-projects.vercel.app',
-  'https://nvh-customer-management-gtvw1nyb9-harshi1111s-projects.vercel.app',
-  'https://nvh-customer-management-fcvqj9tr6-harshi1111s-projects.vercel.app', // ADD THIS
-  'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5173'
-  ];
+  const allowedOrigins = getCorsOrigins(); // USE THE UTILITY
   
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('nvh-customer-management'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
