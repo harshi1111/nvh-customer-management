@@ -1,6 +1,12 @@
 import { Sequelize } from 'sequelize-typescript';
 import dotenv from 'dotenv';
 
+// 🔥 IMPORT ALL YOUR MODELS HERE
+import Customer from '../models/Customer';
+import Project from '../models/Project';
+import Transaction from '../models/Transaction';
+import User from '../models/User';
+
 dotenv.config();
 
 const sequelize = new Sequelize({
@@ -10,7 +16,8 @@ const sequelize = new Sequelize({
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
   dialect: 'postgres',
-  models: [__dirname + '/../models'],
+  // 🔥 REPLACE THE PATH WITH EXPLICIT MODEL IMPORTS
+  models: [Customer, Project, Transaction, User], // <-- CHANGE THIS LINE
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   dialectOptions: {
     ssl: {
