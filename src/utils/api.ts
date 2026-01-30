@@ -1,5 +1,5 @@
 // src/utils/api.ts
-const API_BASE_URL = 'https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app/api';
+const API_BASE_URL = 'https://nvh-customer-management-z7b1.vercel.app/api';
 async function apiRequest<T>(
   endpoint: string,
   method: string = 'GET',
