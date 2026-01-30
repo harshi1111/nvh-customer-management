@@ -1,7 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import dotenv from 'dotenv';
 
-// 🔥 IMPORT ALL YOUR MODELS HERE
+// Import models
 import Customer from '../models/Customer';
 import Project from '../models/Project';
 import Transaction from '../models/Transaction';
@@ -16,8 +16,7 @@ const sequelize = new Sequelize({
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
   dialect: 'postgres',
-  // 🔥 REPLACE THE PATH WITH EXPLICIT MODEL IMPORTS
-  models: [Customer, Project, Transaction, User], // <-- CHANGE THIS LINE
+  models: [Customer, Project, Transaction, User],
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   dialectOptions: {
     ssl: {
@@ -27,12 +26,16 @@ const sequelize = new Sequelize({
   }
 });
 
+// 🔥 CRITICAL: Initialize models globally
+// This ensures when controllers import models, they're already connected
+sequelize.addModels([Customer, Project, Transaction, User]);
+
 export const connectPostgres = async (): Promise<void> => {
   try {
     await sequelize.authenticate();
     console.log('✅ PostgreSQL Connected Successfully');
     
-    // Sync models (create tables if they don't exist)
+    // Sync models
     await sequelize.sync({ alter: true });
     console.log('✅ PostgreSQL tables synced');
     
