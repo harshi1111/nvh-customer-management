@@ -1,25 +1,28 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import crypto from 'crypto';
-import Customer from '../models/Customer';
-import Project from '../models/Project';
-import Transaction from '../models/Transaction';
+import sequelize from '../config/postgres';
+import Customer from '../models/Customer'; // KEEP import for TYPE only
+import Project from '../models/Project'; // KEEP import for TYPE only  
+import Transaction from '../models/Transaction'; // KEEP import for TYPE only
 import { createErrorResponse, handleControllerError } from '../utils/errorResponse';
 
-// Get all customers - UPDATED FOR SEQUELIZE
+// Get the typed models from sequelize
+const CustomerModel = sequelize.models.Customer as typeof Customer;
+const ProjectModel = sequelize.models.Project as typeof Project;
+const TransactionModel = sequelize.models.Transaction as typeof Transaction;
+
+// Get all customers - FIXED WITH TYPING
 export const getAllCustomers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search, status } = req.query;
     
-    // Build where clause for Sequelize
     const where: any = {};
     
-    // Filter by status
     if (status && status !== 'all') {
       where.isActive = status === 'active';
     }
     
-    // Search by name, phone, or Aadhaar
     if (search && typeof search === 'string') {
       where[Op.or] = [
         { fullName: { [Op.iLike]: `%${search}%` } },
@@ -28,10 +31,10 @@ export const getAllCustomers = async (req: Request, res: Response): Promise<void
       ];
     }
     
-    const customers = await Customer.findAll({
+    const customers = await CustomerModel.findAll({
       where,
       order: [['createdAt', 'DESC']],
-      attributes: { exclude: ['__v'] } // Sequelize doesn't have __v
+      attributes: { exclude: ['__v'] }
     });
     
     res.status(200).json({
@@ -44,13 +47,13 @@ export const getAllCustomers = async (req: Request, res: Response): Promise<void
   }
 };
 
-// Get single customer by ID - UPDATED FOR SEQUELIZE
+// Get single customer by ID - FIXED WITH TYPING
 export const getCustomerById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findByPk(req.params.id as string, { // ADDED 'as string'
+    const customer = await CustomerModel.findByPk(req.params.id as string, {
       attributes: { exclude: ['__v'] },
       include: [{
-        model: Project,
+        model: ProjectModel,
         attributes: ['id', 'name', 'status']
       }]
     });
@@ -60,9 +63,8 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
       return;
     }
     
-    // Get financial summary
-    const transactions = await Transaction.findAll({
-      where: { customerId: customer.id } // Use customer.id not customer._id
+    const transactions = await TransactionModel.findAll({
+      where: { customerId: customer.id }
     });
     
     let totalDebit = 0;
@@ -92,7 +94,7 @@ export const getCustomerById = async (req: Request, res: Response): Promise<void
   }
 };
 
-// Create new customer - EFFICIENT DUPLICATE CHECK - UPDATED FOR SEQUELIZE
+// Create new customer - FIXED WITH TYPING
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('=== CREATE CUSTOMER START ===');
@@ -102,13 +104,11 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
       contact: req.body.contactNumber
     });
 
-    // Check if Aadhaar already exists - EFFICIENT VERSION
     if (req.body.aadhaarNumber) {
       const cleanAadhaar = req.body.aadhaarNumber.replace(/\s/g, '');
       
-      // 1. Check by contact number (exact match)
-      const existingByContact = await Customer.findOne({ 
-        where: { contactNumber: req.body.contactNumber } // SEQUELIZE SYNTAX
+      const existingByContact = await CustomerModel.findOne({ 
+        where: { contactNumber: req.body.contactNumber }
       });
       
       if (existingByContact) {
@@ -120,11 +120,10 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
         return;
       }
       
-      // 2. Check by Aadhaar hash (if valid Aadhaar)
       if (/^\d{12}$/.test(cleanAadhaar)) {
         const aadhaarHash = crypto.createHash('sha256').update(cleanAadhaar).digest('hex');
-        const existingByHash = await Customer.findOne({ 
-          where: { aadhaarHash } // SEQUELIZE SYNTAX
+        const existingByHash = await CustomerModel.findOne({ 
+          where: { aadhaarHash }
         });
         
         if (existingByHash) {
@@ -137,26 +136,22 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
         }
       }
       
-      // 3. Check by similar name (fuzzy match - optional but helpful)
-      const existingByName = await Customer.findOne({
+      const existingByName = await CustomerModel.findOne({
         where: {
-          fullName: { [Op.iLike]: `%${req.body.fullName.substring(0, 3)}%` } // SEQUELIZE SYNTAX
+          fullName: { [Op.iLike]: `%${req.body.fullName.substring(0, 3)}%` }
         }
       });
       
       if (existingByName) {
         console.log('Possible duplicate by name:', existingByName.fullName);
-        // Warn but don't block - names can be similar
         console.warn(`Warning: Similar name found: ${existingByName.fullName}`);
       }
     }
 
     console.log('No duplicates found, creating customer...');
     
-    // Create the customer - SEQUELIZE SYNTAX
-    const customer = await Customer.create({
+    const customer = await CustomerModel.create({
       ...req.body
-      // projects array is handled by associations, not needed here
     });
     
     console.log('Customer created successfully:', customer.fullName);
@@ -171,20 +166,17 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// Update customer - UPDATED FOR SEQUELIZE
+// Update customer - FIXED WITH TYPING
 export const updateCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findByPk(req.params.id as string);
+    const customer = await CustomerModel.findByPk(req.params.id as string);
     
     if (!customer) {
       res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
-    // Update customer with new data
     await customer.update(req.body);
-    
-    // Reload to get updated data with associations if needed
     await customer.reload();
     
     res.status(200).json({
@@ -196,27 +188,24 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// Delete customer - UPDATED FOR SEQUELIZE
+// Delete customer - FIXED WITH TYPING
 export const deleteCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findByPk(req.params.id as string);
+    const customer = await CustomerModel.findByPk(req.params.id as string);
     
     if (!customer) {
       res.status(404).json(createErrorResponse('Customer not found', 404));
       return;
     }
     
-    // Delete customer's projects - SEQUELIZE SYNTAX
-    await Project.destroy({ 
-      where: { customerId: customer.id } // Use customer.id not customer._id
+    await ProjectModel.destroy({ 
+      where: { customerId: customer.id }
     });
     
-    // Delete customer's transactions - SEQUELIZE SYNTAX
-    await Transaction.destroy({ 
-      where: { customerId: customer.id } // Use customer.id not customer._id
+    await TransactionModel.destroy({ 
+      where: { customerId: customer.id }
     });
     
-    // Delete customer
     await customer.destroy();
     
     res.status(200).json({
@@ -229,10 +218,10 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// Toggle customer active status - UPDATED FOR SEQUELIZE
+// Toggle customer active status - FIXED WITH TYPING
 export const toggleCustomerStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findByPk(req.params.id as string);
+    const customer = await CustomerModel.findByPk(req.params.id as string);
     
     if (!customer) {
       res.status(404).json(createErrorResponse('Customer not found', 404));
@@ -251,7 +240,7 @@ export const toggleCustomerStatus = async (req: Request, res: Response): Promise
   }
 };
 
-// Get customer financial summary - UPDATED FOR SEQUELIZE
+// Get customer financial summary - FIXED WITH TYPING
 export const getCustomerFinancialSummary = async (req: Request, res: Response): Promise<void> => {
   try {
     const { projectId } = req.query;
@@ -262,14 +251,14 @@ export const getCustomerFinancialSummary = async (req: Request, res: Response): 
       where.projectId = projectId;
     }
     
-    const transactions = await Transaction.findAll({
+    const transactions = await TransactionModel.findAll({
       where
     });
     
     let totalDebit = 0;
     let totalCredit = 0;
     
-    transactions.forEach((transaction: any) => {
+    transactions.forEach((transaction: Transaction) => {
       totalDebit += transaction.debitAmount;
       totalCredit += transaction.creditAmount;
     });
@@ -283,6 +272,51 @@ export const getCustomerFinancialSummary = async (req: Request, res: Response): 
         transactionCount: transactions.length
       }
     });
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// Check duplicate Aadhaar - FIXED WITH TYPING
+export const checkDuplicateAadhaar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { aadhaar } = req.params;
+    const { exclude } = req.query;
+    
+    const aadhaarString = Array.isArray(aadhaar) ? aadhaar[0] : aadhaar;
+    
+    if (!aadhaarString || aadhaarString.length !== 12) {
+      res.status(400).json(createErrorResponse('Invalid Aadhaar number', 400));
+      return;
+    }
+    
+    const cleanAadhaar = aadhaarString.replace(/\s/g, '');
+    const aadhaarHash = crypto.createHash('sha256').update(cleanAadhaar).digest('hex');
+    
+    const where: any = { aadhaarHash };
+    
+    if (exclude && typeof exclude === 'string') {
+      where.id = { [Op.ne]: exclude };
+    }
+    
+    const existingCustomer = await CustomerModel.findOne({
+      where,
+      attributes: ['id', 'fullName', 'contactNumber']
+    });
+    
+    if (existingCustomer) {
+      res.status(200).json({
+        exists: true,
+        customerName: existingCustomer.fullName,
+        contactNumber: existingCustomer.contactNumber
+      });
+      return;
+    }
+    
+    res.status(200).json({
+      exists: false
+    });
+    
   } catch (error) {
     handleControllerError(error, res);
   }
