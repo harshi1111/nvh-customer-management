@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectPostgres = void 0;
 const sequelize_typescript_1 = require("sequelize-typescript");
 const dotenv_1 = __importDefault(require("dotenv"));
-// 🔥 IMPORT ALL YOUR MODELS HERE
+// Import models
 const Customer_1 = __importDefault(require("../models/Customer"));
 const Project_1 = __importDefault(require("../models/Project"));
 const Transaction_1 = __importDefault(require("../models/Transaction"));
@@ -19,8 +19,7 @@ const sequelize = new sequelize_typescript_1.Sequelize({
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT || '5432'),
     dialect: 'postgres',
-    // 🔥 REPLACE THE PATH WITH EXPLICIT MODEL IMPORTS
-    models: [Customer_1.default, Project_1.default, Transaction_1.default, User_1.default], // <-- CHANGE THIS LINE
+    models: [Customer_1.default, Project_1.default, Transaction_1.default, User_1.default],
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
         ssl: {
@@ -29,11 +28,14 @@ const sequelize = new sequelize_typescript_1.Sequelize({
         }
     }
 });
+// 🔥 CRITICAL: Initialize models globally
+// This ensures when controllers import models, they're already connected
+sequelize.addModels([Customer_1.default, Project_1.default, Transaction_1.default, User_1.default]);
 const connectPostgres = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ PostgreSQL Connected Successfully');
-        // Sync models (create tables if they don't exist)
+        // Sync models
         await sequelize.sync({ alter: true });
         console.log('✅ PostgreSQL tables synced');
     }

@@ -31,7 +31,7 @@ const getCorsOrigins = () => {
 };
 exports.getCorsOrigins = getCorsOrigins;
 exports.corsOptions = {
-    origin: 'https://nvh-customer-management.vercel.app',
+    origin: (0, exports.getCorsOrigins)(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
