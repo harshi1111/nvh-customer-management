@@ -6,6 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectPostgres = void 0;
 const sequelize_typescript_1 = require("sequelize-typescript");
 const dotenv_1 = __importDefault(require("dotenv"));
+// 🔥 IMPORT ALL YOUR MODELS HERE
+const Customer_1 = __importDefault(require("../models/Customer"));
+const Project_1 = __importDefault(require("../models/Project"));
+const Transaction_1 = __importDefault(require("../models/Transaction"));
+const User_1 = __importDefault(require("../models/User"));
 dotenv_1.default.config();
 const sequelize = new sequelize_typescript_1.Sequelize({
     database: process.env.DB_NAME || 'postgres',
@@ -14,7 +19,8 @@ const sequelize = new sequelize_typescript_1.Sequelize({
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT || '5432'),
     dialect: 'postgres',
-    models: [__dirname + '/../models'],
+    // 🔥 REPLACE THE PATH WITH EXPLICIT MODEL IMPORTS
+    models: [Customer_1.default, Project_1.default, Transaction_1.default, User_1.default], // <-- CHANGE THIS LINE
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
         ssl: {

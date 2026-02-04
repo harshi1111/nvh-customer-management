@@ -6,7 +6,8 @@ import {
   updateCustomer,
   deleteCustomer,
   toggleCustomerStatus,
-  getCustomerFinancialSummary
+  getCustomerFinancialSummary,
+  checkDuplicateAadhaar // ADD THIS
 } from '../controllers/customer.controller';
 
 const router = express.Router();
@@ -31,5 +32,8 @@ router.patch('/:id/toggle-status', toggleCustomerStatus);
 
 // GET /api/customers/:id/financial-summary - Get customer financial summary
 router.get('/:id/financial-summary', getCustomerFinancialSummary);
+
+// GET /api/customers/check-aadhaar/:aadhaar - Check for duplicate Aadhaar
+router.get('/check-aadhaar/:aadhaar', checkDuplicateAadhaar);
 
 export default router;

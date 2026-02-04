@@ -15,7 +15,7 @@ const getCorsOrigins = () => {
         origins.push(process.env.BACKEND_URL);
     }
     else {
-        origins.push('https://nvh-customer-management-s3yn-4zmxhccyf-harshi1111s-projects.vercel.app');
+        origins.push('https://nvh-customer-management.vercel.app');
     }
     // Development URLs
     if (process.env.NODE_ENV !== 'production') {

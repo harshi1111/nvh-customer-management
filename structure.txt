@@ -1,0 +1,124 @@
+NVH-AGRI-SYSTEM/
+├── .gitlab/
+├── backend/
+│   ├── dist/
+│   │   ├── config/
+│   │   │   └── postgres.js
+│   │   ├── controllers/
+│   │   │   ├── customer.controller.js
+│   │   │   ├── project.controller.js
+│   │   │   └── transaction.controller.js
+│   │   ├── middleware/
+│   │   │   └── auth.js
+│   │   ├── models/
+│   │   │   ├── Customer.js
+│   │   │   ├── Project.js
+│   │   │   ├── Transaction.js
+│   │   │   └── User.js
+│   │   ├── routes/
+│   │   │   ├── auth.routes.js
+│   │   │   ├── customer.routes.js
+│   │   │   ├── project.routes.js
+│   │   │   └── transaction.routes.js
+│   │   ├── utils/
+│   │   ├── app.js
+│   │   └── index.js
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── postgres.ts
+│   │   ├── controllers/
+│   │   │   ├── customer.controller.ts
+│   │   │   ├── project.controller.ts
+│   │   │   └── transaction.controller.ts
+│   │   ├── middleware/
+│   │   │   └── auth.ts
+│   │   ├── models/
+│   │   │   ├── Customer.ts
+│   │   │   ├── Project.ts
+│   │   │   ├── Transaction.ts
+│   │   │   └── User.ts
+│   │   ├── routes/
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── customer.routes.ts
+│   │   │   ├── project.routes.ts
+│   │   │   └── transaction.routes.ts
+│   │   ├── scripts/
+│   │   ├── types/
+│   │   │   └── express.d.ts
+│   │   ├── utils/
+│   │   │   ├── corsConfig.ts
+│   │   │   ├── encryption.ts
+│   │   │   ├── errorResponse.ts
+│   │   │   └── sequelizeEncryption.ts
+│   │   ├── app.ts
+│   │   └── index.ts
+│   ├── .env
+│   ├── .gitignore
+│   ├── .gitignore.backup
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── server.ts (or server.js for JavaScript)
+│   └── tsconfig.json
+├── build/
+├── node_modules/
+├── public/
+│   ├── favicon.ico
+│   ├── index.html
+│   ├── logo192.png
+│   ├── logo512.png
+│   ├── manifest.json
+│   └── robots.txt
+├── src/ (frontend React)
+│   ├── components/
+│   │   ├── AadhaarUpload.tsx
+│   │   ├── ChangePassword.tsx
+│   │   ├── CustomerCard.tsx
+│   │   ├── DateRangePicker.tsx
+│   │   ├── ExpenseTable.tsx
+│   │   ├── ExportPDFButton.tsx
+│   │   ├── ManualCustomerForm.tsx
+│   │   ├── MobileFormField.tsx
+│   │   ├── ProjectFormMobile.tsx
+│   │   ├── ProjectManagement.tsx
+│   │   └── ReportTable.tsx
+│   ├── contexts/
+│   │   └── AuthContext.tsx
+│   ├── data/
+│   ├── pages/
+│   │   ├── AccountingDashboard.tsx
+│   │   ├── AccountingPage.tsx
+│   │   ├── CustomersPage.tsx
+│   │   ├── LoginPage.tsx
+│   │   └── ReportPage.tsx
+│   ├── types/
+│   │   └── index.ts
+│   ├── utils/
+│   │   ├── aadhaarOCR.ts
+│   │   ├── api.ts
+│   │   ├── locationService.ts
+│   │   ├── qrScanner.ts
+│   │   ├── security.ts
+│   │   └── storage.ts
+│   ├── App.css
+│   ├── App.test.tsx
+│   ├── App.tsx
+│   ├── index.css
+│   ├── index.tsx
+│   ├── logo.svg
+│   ├── react-app-env.d.ts
+│   ├── reportWebVitals.ts
+│   └── setupTests.ts
+├── Aadhaar Sudharshan.pdf
+├── back1.png
+├── back2.png
+├── front1.png
+├── front2.png
+├── .gitignore (root level)
+├── package-lock.json (root level)
+├── package.json (root level)
+├── postcss.config.js
+├── README.md
+├── Screenshot 2026-01-07 214828.png
+├── tailwind.config.js
+├── testQR.html
+└── tsconfig.json (root level)

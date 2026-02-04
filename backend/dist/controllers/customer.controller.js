@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCustomerFinancialSummary = exports.toggleCustomerStatus = exports.deleteCustomer = exports.updateCustomer = exports.createCustomer = exports.getCustomerById = exports.getAllCustomers = void 0;
+exports.checkDuplicateAadhaar = exports.getCustomerFinancialSummary = exports.toggleCustomerStatus = exports.deleteCustomer = exports.updateCustomer = exports.createCustomer = exports.getCustomerById = exports.getAllCustomers = void 0;
 const sequelize_1 = require("sequelize");
 const crypto_1 = __importDefault(require("crypto"));
 const Customer_1 = __importDefault(require("../models/Customer"));
@@ -252,3 +252,45 @@ const getCustomerFinancialSummary = async (req, res) => {
     }
 };
 exports.getCustomerFinancialSummary = getCustomerFinancialSummary;
+// Check duplicate Aadhaar - UPDATED FOR SEQUELIZE
+const checkDuplicateAadhaar = async (req, res) => {
+    try {
+        const { aadhaar } = req.params;
+        const { exclude } = req.query;
+        // Ensure aadhaar is a string (Express params can sometimes be arrays)
+        const aadhaarString = Array.isArray(aadhaar) ? aadhaar[0] : aadhaar;
+        if (!aadhaarString || aadhaarString.length !== 12) {
+            res.status(400).json((0, errorResponse_1.createErrorResponse)('Invalid Aadhaar number', 400));
+            return;
+        }
+        const cleanAadhaar = aadhaarString.replace(/\s/g, '');
+        // Create hash for the provided Aadhaar
+        const aadhaarHash = crypto_1.default.createHash('sha256').update(cleanAadhaar).digest('hex');
+        // Build where clause
+        const where = { aadhaarHash };
+        // Exclude current customer if provided (for updates)
+        if (exclude && typeof exclude === 'string') {
+            where.id = { [sequelize_1.Op.ne]: exclude };
+        }
+        // Check for duplicate
+        const existingCustomer = await Customer_1.default.findOne({
+            where,
+            attributes: ['id', 'fullName', 'contactNumber']
+        });
+        if (existingCustomer) {
+            res.status(200).json({
+                exists: true,
+                customerName: existingCustomer.fullName,
+                contactNumber: existingCustomer.contactNumber
+            });
+            return;
+        }
+        res.status(200).json({
+            exists: false
+        });
+    }
+    catch (error) {
+        (0, errorResponse_1.handleControllerError)(error, res);
+    }
+};
+exports.checkDuplicateAadhaar = checkDuplicateAadhaar;

@@ -31,7 +31,7 @@ const CustomersPage: React.FC = () => {
   const loadCustomersFromDatabase = async () => {
     try {
       setLoading(true);
-      const response = await customerApi.getAll();
+      const response = await customerApi.getAll('', 'all'); 
       
       if (response.success && response.data) {
         // Map MongoDB customers to frontend format

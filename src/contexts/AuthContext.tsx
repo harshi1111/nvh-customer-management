@@ -1,6 +1,6 @@
 // In frontend/src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-const API_BASE_URL = 'https://nvh-customer-management.onrender.com/api';
+const API_BASE_URL = 'https://nvh-customer-management-z7b1.vercel.app/api';
 
 interface User {
   id: string;

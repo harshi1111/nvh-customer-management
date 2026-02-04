@@ -68,7 +68,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 // Protected routes
-app.use('/api/customers', customer_routes_1.default);
+app.use('/api/customers', auth_1.authenticate, customer_routes_1.default);
 app.use('/api/projects', auth_1.authenticate, project_routes_1.default);
 app.use('/api/transactions', auth_1.authenticate, transaction_routes_1.default);
 // 404 handler

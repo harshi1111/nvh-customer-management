@@ -74,7 +74,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Protected routes
-app.use('/api/customers', customerRoutes);
+app.use('/api/customers', authenticate, customerRoutes); 
 app.use('/api/projects', authenticate, projectRoutes);
 app.use('/api/transactions', authenticate, transactionRoutes);
 

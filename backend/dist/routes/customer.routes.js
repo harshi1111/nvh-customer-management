@@ -20,4 +20,6 @@ router.delete('/:id', customer_controller_1.deleteCustomer);
 router.patch('/:id/toggle-status', customer_controller_1.toggleCustomerStatus);
 // GET /api/customers/:id/financial-summary - Get customer financial summary
 router.get('/:id/financial-summary', customer_controller_1.getCustomerFinancialSummary);
+// GET /api/customers/check-aadhaar/:aadhaar - Check for duplicate Aadhaar
+router.get('/check-aadhaar/:aadhaar', customer_controller_1.checkDuplicateAadhaar);
 exports.default = router;
