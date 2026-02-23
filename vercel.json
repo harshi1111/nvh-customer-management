@@ -11,26 +11,22 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "backend/src/index.ts"
+      "source": "/api/auth/(.*)",
+      "destination": "backend/src/index.ts"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
+      "source": "/api/customers/(.*)",
+      "destination": "backend/src/index.ts"
     },
     {
-      "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "source": "/api/(.*)",
+      "destination": "backend/src/index.ts"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
