@@ -9,22 +9,31 @@ import User from '../models/User';
 
 dotenv.config();
 
-const sequelize = new Sequelize({
-  database: process.env.DB_NAME || 'postgres',
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432'),
-  dialect: 'postgres',
-  models: [Customer, Project, Transaction, User],
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
-    }
-  }
-});
+const isProduction = process.env.NODE_ENV === 'production';
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
+const sequelize = connectionString 
+  ? new Sequelize(connectionString, {
+      dialect: 'postgres',
+      models: [Customer, Project, Transaction, User],
+      logging: !isProduction,
+      dialectOptions: {
+        ssl: { require: true, rejectUnauthorized: false }
+      }
+    })
+  : new Sequelize({
+      database: process.env.DB_NAME || 'postgres',
+      username: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD,
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '5432'),
+      dialect: 'postgres',
+      models: [Customer, Project, Transaction, User],
+      logging: !isProduction,
+      dialectOptions: {
+        ssl: { require: true, rejectUnauthorized: false }
+      }
+    });
 
 // 🔥 CRITICAL: Initialize models globally
 // This ensures when controllers import models, they're already connected

@@ -2,12 +2,22 @@ import express from 'express';
 const app = express();
 
 // OPTIONS HANDLER MUST BE FIRST - BEFORE ANYTHING ELSE
-app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://nvh-customer-management.vercel.app');
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // This regex allows any Vercel preview URL from your project
+  if (origin && (origin.includes('nvh-customer-management') && origin.endsWith('.vercel.app'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://nvh-customer-management.vercel.app');
+  }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.sendStatus(200);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
 // Now import everything else
