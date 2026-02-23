@@ -1,0 +1,4 @@
+"I noticed that setting up a complex project manually took about 5-10 minutes of clicking and naming folders. My script does it in under 3 seconds. While I didn't run a formal study, the speed improvement for the end-user is nearly instant."
+
+
+Machine Learning Training (Retech Solutions)

@@ -1,0 +1,43 @@
+“Good morning/afternoon. I’m Harshitha V, currently in my 3rd year, 6th semester, pursuing a Bachelor’s in AI & Data Science at Saveetha Engineering College, Chennai.
+
+I’m passionate about technology and data, with strong skills in Python, Java, and SQL, and I’m comfortable using Excel and Power BI for analysis and visualization. I’ve automated repetitive tasks using Python, built basic ML models, and worked on small projects analyzing business data like trends and performance metrics. I also practice on Kaggle datasets to strengthen my data analysis and problem-solving skills.
+
+I completed a 1-month internship at Glencore as a Data Engineering Intern, where I scraped, cleaned, and updated datasets, and automated processes using Python, xlwings, and BeautifulSoup.
+
+ This experience taught me to handle data efficiently, maintain accuracy, adapt quickly, and collaborate in a professional team.
+
+In college, I worked on LegalEase AI, which automates legal document analysis using NLP. Handling unstructured text was challenging, but I overcame it using NLTK and SpaCy, which strengthened my problem-solving, feature engineering, and data preprocessing skills.
+
+I’m currently completing the Google Data Analytics Certificate to improve workflow, reporting, and visualization, and I’m actively participating in Kaggle competitions for practical experience.
+
+I enjoy working in teams, learning quickly, and tackling new challenges, and I want to work with real datasets to build practical solutions. Right now, my focus is on gaining hands-on experience, and over time, I hope to take on responsibilities in designing and optimizing data workflows.
+
+Thank you for this opportunity.”
+
+
+------------------
+Good morning/afternoon. I’m Harshitha V, currently in my 3rd year, 6th semester, pursuing a Bachelor’s in AI & Data Science at Saveetha Engineering College, Chennai.
+
+I’m passionate about technology and data, with strong skills in Python, Java, and SQL, and I’m comfortable using Excel and Power BI for analysis and visualization. I’ve automated repetitive tasks using Python, built basic ML models, and worked on projects analyzing business trends and performance metrics.
+
+I also practice on Kaggle datasets to strengthen my data analysis and problem-solving skills, and I have a solid foundation in statistics and data preprocessing, which are essential for data-driven decision-making.
+
+I completed a 1-month internship at Glencore as a Data Engineering Intern, where I scraped, cleaned, and updated datasets, and automated workflows using Python, xlwings, and BeautifulSoup. This experience taught me the importance of accuracy, efficiency, and collaboration in real-world data environments.
+
+In college, I worked on LegalEase AI, which automates legal document analysis using NLP. Handling unstructured text was challenging, but I overcame it using NLTK and SpaCy, which strengthened my skills in feature engineering and text preprocessing.
+
+I’m currently completing the Google Data Analytics Certificate, actively participating in Kaggle competitions, and exploring cloud platforms like AWS to understand how scalable data pipelines and ETL workflows are built in industry. I also use GitHub for organizing and tracking my projects.
+
+I enjoy working in teams, learning quickly, and solving real-world problems with data. Right now, my focus is on gaining hands-on experience in data analyst or data engineering roles, and in the long term, I hope to design and optimize impactful data workflows.
+
+Thank you for this opportunity.-
+---------------------------------------------
+
+“Good morning/afternoon. I’m Harshitha V, currently in my 3rd year, 6th semester, pursuing a Bachelor’s in Artificial Intelligence & Data Science at Saveetha Engineering College, Chennai.”
+“I’m passionate about technology and data, and I have strong skills in Python, Java, and SQL. I can work with Excel and Power BI for data analysis and visualization. I’ve also automated repetitive tasks using Python and built basic machine learning models. Through small projects, I’ve analyzed business data like trends and performance metrics, which helped me connect technical work to practical insights. I also practice on Kaggle datasets to improve my data analysis and problem-solving skills.”
+“I completed a 1-month internship at Glencore as a Data Engineering Intern. My work included scraping, cleaning, and updating large datasets, and automating repetitive processes using Python, xlwings, and BeautifulSoup. This experience taught me how to handle data efficiently, maintain accuracy, adapt quickly to new workflows, and collaborate effectively in a professional team.”
+“In college, I worked on LegalEase AI, which automates analysis of legal documents using NLP techniques. The main challenge was handling unstructured text from multiple sources, which I overcame using Python libraries like NLTK and SpaCy. This project strengthened my problem-solving, feature engineering, and data preprocessing skills, and produced a tool that can extract insights from legal documents efficiently.”
+“I’m currently completing the Google Data Analytics Certificate to improve my workflow, reporting, and visualization skills. I also participate in Kaggle competitions to gain experience with real-world datasets and practice advanced data analysis techniques.”
+“I enjoy working in teams, learning quickly, and tackling new challenges. I want to work with real datasets, analyze trends, and build practical solutions. Right now, my focus is on gaining hands-on experience through internships or entry-level roles, and over time, I hope to take on responsibilities in designing and optimizing data workflows.
+
+Thank you for this opportunity.”

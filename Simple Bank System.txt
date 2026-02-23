@@ -1,0 +1,210 @@
+Simple Bank System
+class Bank {
+    long[] bal;
+    public Bank(long[] balance) {
+        bal = balance;
+    }
+    public boolean transfer(int account1, int account2, long money) {
+        if (account1 < 1 || account1 > bal.length) 
+        return false;
+        if (account2 < 1 || account2 > bal.length) 
+        return false;
+        if (bal[account1 - 1] < money) 
+        return false;
+        bal[account1 - 1] -= money;
+        bal[account2 - 1] += money;
+        return true;
+    }
+    public boolean deposit(int account, long money) {
+        if (account < 1 || account > bal.length) 
+        return false;
+        bal[account - 1] += money;
+        return true;
+    }
+    
+    public boolean withdraw(int account, long money) {
+        if (account < 1 || account > bal.length){
+            return false;
+        }
+        if (bal[account - 1] < money){
+            return false;
+        }
+        bal[account - 1] -= money;
+        return true;
+    }
+}
+
+
+Encode and Decode TinyURL
+import java.util.*;
+
+public class Codec {
+
+    Map<String, String> map = new HashMap<>();
+    int count = 1;
+
+    public String encode(String longUrl) {
+        String shortUrl = "http://tinyurl.com/" + count;
+        map.put(shortUrl, longUrl);
+        count++;
+        return shortUrl;
+    }
+
+    public String decode(String shortUrl) {
+        return map.get(shortUrl);
+    }
+}
+
+
+Design Twitter
+class Twitter {
+
+    static int time = 0;
+
+    class Tweet {
+        int userId, tweetId, time;
+
+        Tweet(int u, int t, int ti) {
+            userId = u;
+            tweetId = t;
+            time = ti;
+        }
+    }
+
+    List<Tweet> tweets;
+    Map<Integer, Set<Integer>> followMap;
+
+    public Twitter() {
+        tweets = new ArrayList<>();
+        followMap = new HashMap<>();
+    }
+
+    public void postTweet(int userId, int tweetId) {
+        tweets.add(new Tweet(userId, tweetId, ++time));
+    }
+
+    public List<Integer> getNewsFeed(int userId) {
+
+        followMap.putIfAbsent(userId, new HashSet<>());
+        followMap.get(userId).add(userId);
+
+        List<Tweet> feed = new ArrayList<>();
+
+        for (Tweet t : tweets) {
+            if (followMap.get(userId).contains(t.userId)) {
+                feed.add(t);
+            }
+        }
+
+        feed.sort((a, b) -> b.time - a.time);
+
+        List<Integer> ans = new ArrayList<>();
+        for (int i = 0; i < Math.min(10, feed.size()); i++) {
+            ans.add(feed.get(i).tweetId);
+        }
+
+        return ans;
+    }
+
+    public void follow(int followerId, int followeeId) {
+        followMap.putIfAbsent(followerId, new HashSet<>());
+        followMap.get(followerId).add(followeeId);
+    }
+
+    public void unfollow(int followerId, int followeeId) {
+        if (followMap.containsKey(followerId)) {
+            followMap.get(followerId).remove(followeeId);
+        }
+    }
+}
+
+
+
+or 
+
+
+import java.util.Scanner;
+
+class Twitter {
+
+    static int[][] tweets = new int[30000][2];
+    static int tweetCount = 0;
+
+    static boolean[][] follow = new boolean[501][501];
+
+    void postTweet(int userId, int tweetId) {
+        tweets[tweetCount][0] = userId;
+        tweets[tweetCount][1] = tweetId;
+        tweetCount++;
+    }
+
+    int[] getNewsFeed(int userId) {
+        int[] temp = new int[10];
+        int k = 0;
+
+        for (int i = tweetCount - 1; i >= 0 && k < 10; i--) {
+            int u = tweets[i][0];
+            int t = tweets[i][1];
+
+            if (u == userId || follow[userId][u]) {
+                temp[k++] = t;
+            }
+        }
+
+        int[] res = new int[k];
+        for (int i = 0; i < k; i++) {
+            res[i] = temp[i];
+        }
+        return res;
+    }
+
+    void follow(int followerId, int followeeId) {
+        if (followerId != followeeId)
+            follow[followerId][followeeId] = true;
+    }
+
+    void unfollow(int followerId, int followeeId) {
+        follow[followerId][followeeId] = false;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+        Twitter twitter = new Twitter();
+
+        int n = sc.nextInt();
+
+        for (int i = 0; i < n; i++) {
+            String cmd = sc.next();
+
+            if (cmd.equals("post")) {
+                int userId = sc.nextInt();
+                int tweetId = sc.nextInt();
+                twitter.postTweet(userId, tweetId);
+            }
+
+            else if (cmd.equals("get")) {
+                int userId = sc.nextInt();
+                int[] feed = twitter.getNewsFeed(userId);
+
+                for (int x : feed)
+                    System.out.print(x + " ");
+                System.out.println();
+            }
+
+            else if (cmd.equals("follow")) {
+                int f1 = sc.nextInt();
+                int f2 = sc.nextInt();
+                twitter.follow(f1, f2);
+            }
+
+            else if (cmd.equals("unfollow")) {
+                int f1 = sc.nextInt();
+                int f2 = sc.nextInt();
+                twitter.unfollow(f1, f2);
+            }
+        }
+    }
+}
